@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Shree Krishna Enterprises</title>
+    
+    <!-- Client-Side DevTools Prevention Script (Runs First) -->
+    <script src="js/security.js"></script>
+
+    <!-- Favicon & App Icons -->
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="icon" type="image/jpeg" sizes="192x192" href="icon-192.jpeg">
+    <link rel="icon" type="image/jpeg" sizes="512x512" href="icon-512.jpeg">
+    <link rel="apple-touch-icon" href="icon-192.jpeg">
+
+    <!-- PWA & Mobile Optimization -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#34b7f1">
+
+    <link rel="stylesheet" href="css/admin.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Admin Service Worker registered successfully!', reg.scope))
+                    .catch(err => console.error('Admin Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <h2>Admin Area</h2>
+            <form id="login-form">
+                <div class="form-group" style="text-align: left;">
+                    <label>Email</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="form-group" style="text-align: left;">
+                    <label>Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <p id="error-msg" style="color: #ef4444; font-size: 0.875rem; display: none;">Invalid credentials.</p>
+                <button type="submit" class="btn btn-primary" id="login-btn">Login</button>
+            </form>
+            <div style="margin-top: 1rem;">
+                <a href="index.html" style="color: var(--text-muted); font-size: 0.875rem; text-decoration: none;">&larr; Back to Website</a>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/auth.js"></script>
+</body>
+</html>

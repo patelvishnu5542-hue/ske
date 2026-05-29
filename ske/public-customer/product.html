@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Primary SEO Meta Tags -->
+    <title>Product Details - Shree Krishna Enterprises</title>
+    <meta name="description" content="View detailed technical specifications, pricing, government Suray Ghar Yojana subsidies, and get custom quotes for Waaree Solar Panel products.">
+    <meta name="author" content="Shree Krishna Enterprises">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#25D366">
+
+    <!-- Client-Side DevTools Prevention Script -->
+    <script src="js/security.js"></script>
+
+    <!-- Favicon & App Icons -->
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <!-- PWA & Mobile Optimization -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/style.css?v=1.1">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        .product-detail-container {
+            margin-top: 3rem;
+            margin-bottom: 5rem;
+        }
+        
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+            transition: var(--transition-smooth);
+        }
+        
+        .btn-back:hover {
+            color: #25D366;
+            transform: translateX(-4px);
+        }
+        
+        .detail-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 3.5rem;
+            align-items: start;
+        }
+        
+        @media (min-width: 992px) {
+            .detail-grid {
+                grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+            }
+        }
+        
+        .image-showcase {
+            background-color: var(--bg-gray);
+            border-radius: 24px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            height: 400px;
+        }
+        
+        @media (min-width: 768px) {
+            .image-showcase {
+                height: 500px;
+            }
+        }
+        
+        .image-showcase img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 12px;
+            transition: var(--transition-smooth);
+        }
+        
+        .image-showcase:hover img {
+            transform: scale(1.03);
+        }
+        
+        .info-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .product-category-badge {
+            align-self: flex-start;
+            background-color: rgba(37, 211, 102, 0.1);
+            color: #128C7E;
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border: 1px solid rgba(37, 211, 102, 0.2);
+        }
+        
+        .product-name-title {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            line-height: 1.25;
+            margin-top: -0.5rem;
+        }
+        
+        .product-desc-text {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            line-height: 1.75;
+        }
+        
+        .subsidy-info-box {
+            background-color: #fef3c7;
+            border: 1px solid #fde68a;
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin-top: 1rem;
+        }
+        
+        .subsidy-info-title {
+            font-weight: 700;
+            color: #b45309;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subsidy-info-desc {
+            font-size: 0.85rem;
+            color: #92400e;
+            line-height: 1.5;
+        }
+        
+        /* Specs Table Styling */
+        .specs-section {
+            margin-top: 4rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 3.5rem;
+        }
+        
+        .specs-title {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+        }
+        
+        .specs-table-container {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .specs-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        
+        .specs-table th {
+            background-color: var(--bg-gray);
+            color: var(--text-muted);
+            font-weight: 700;
+            padding: 1rem 1.5rem;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .specs-table td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+            color: var(--text-dark);
+        }
+        
+        .specs-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .specs-table tr:nth-child(even) {
+            background-color: var(--bg-gray);
+        }
+        
+        .specs-key {
+            font-weight: 600;
+            width: 35%;
+            color: var(--text-muted);
+        }
+        
+        .specs-val {
+            font-weight: 500;
+        }
+        
+        /* Loading Skeleton */
+        .detail-skeleton {
+            background: linear-gradient(90deg, #f8fafc 25%, #f1f5f9 50%, #f8fafc 75%);
+            background-size: 200% 100%;
+            animation: pulseBg 1.5s infinite;
+            border-radius: 8px;
+        }
+        
+        @keyframes pulseBg {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .showcase-wrapper {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .showcase-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid var(--border-color);
+            color: var(--text-dark);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: var(--transition-smooth);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .showcase-arrow:hover {
+            background: #ffffff;
+            color: #25D366;
+            box-shadow: var(--shadow-md);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        .showcase-arrow.prev {
+            left: 15px;
+        }
+
+        .showcase-arrow.next {
+            right: 15px;
+        }
+
+        .thumbnails-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            overflow-x: auto;
+            padding: 8px 4px;
+            scrollbar-width: thin;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .thumbnail-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            flex-shrink: 0;
+            padding: 0;
+            background: var(--bg-gray);
+        }
+
+        .thumbnail-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .thumbnail-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .thumbnail-btn.active {
+            border-color: #25D366;
+            box-shadow: var(--shadow-glow);
+        }
+    </style>
+</head>
+
+<body class="reveal-site">
+
+    <!-- Header -->
+    <header id="main-header" class="scrolled">
+        <div class="container navbar">
+            <a href="index.html" class="logo">Shree Krishna Enterprises</a>
+            <nav class="nav-links" id="navbar-menu">
+                <a href="index.html#products">Products</a>
+                <a href="index.html#about">About</a>
+                <a href="index.html#services">Services</a>
+                <a href="index.html#gallery">Gallery</a>
+                <a href="index.html#contact">Contact</a>
+            </nav>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="menu-toggle" class="btn"
+                    style="display: none; background: transparent; padding: 0.5rem; font-size: 1.25rem; color: #ffffff; border: none;"><i
+                        class="fas fa-bars"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Drawer -->
+    <div id="mobile-drawer"
+        style="position: fixed; top: 0; left: -100%; width: 280px; height: 100%; background: white; z-index: 150; box-shadow: var(--shadow-lg); transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1); padding: 2rem 1.5rem; display: flex; flex-direction: column; gap: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <a href="index.html" class="logo" style="color: #25D366 !important;">Shree Krishna Enterprises</a>
+            <button id="close-drawer" style="background: none; border: none; font-size: 1.25rem; cursor: pointer;"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 2rem;">
+            <a href="index.html#products" class="drawer-link" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">Products</a>
+            <a href="index.html#about" class="drawer-link" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">About Us</a>
+            <a href="index.html#services" class="drawer-link" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">Services</a>
+            <a href="index.html#gallery" class="drawer-link" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">Gallery</a>
+            <a href="index.html#contact" class="drawer-link" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">Contact</a>
+        </div>
+        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+            <a href="tel:+919829545113" class="btn btn-outline" style="width: 100%;"><i class="fas fa-phone-alt"></i> Call Now</a>
+            <a href="https://wa.me/+919829545113" class="btn btn-primary"
+                style="width: 100%; background-color: #25D366; border-color: #25D366;"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+        </div>
+    </div>
+    <div id="drawer-overlay"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 140; display: none; opacity: 0; transition: opacity 0.4s ease;">
+    </div>
+
+    <!-- Main Detail Container -->
+    <main class="container product-detail-container">
+        <a href="index.html#products" class="btn-back"><i class="fas fa-arrow-left"></i> Back to Products</a>
+        
+        <!-- Showcase grid -->
+        <div class="detail-grid">
+            
+            <!-- Left column: Image showcase with carousel -->
+            <div class="showcase-wrapper">
+                <div class="image-showcase" id="detail-image-container" style="position: relative;">
+                    <div class="detail-skeleton" style="width: 80%; height: 80%;"></div>
+                </div>
+                <!-- Thumbnails Container -->
+                <div class="thumbnails-container" id="detail-thumbnails-container"></div>
+            </div>
+            
+            <!-- Right column: Info -->
+            <div class="info-panel" id="detail-info-container">
+                <div class="detail-skeleton" style="width: 120px; height: 30px;"></div>
+                <div class="detail-skeleton" style="width: 85%; height: 45px; margin-top: 10px;"></div>
+                <div class="detail-skeleton" style="width: 100%; height: 100px; margin-top: 10px;"></div>
+                <div class="detail-skeleton" style="width: 60%; height: 60px; margin-top: 10px;"></div>
+            </div>
+            
+        </div>
+        
+        <!-- Specifications Section -->
+        <section class="specs-section">
+            <h2 class="specs-title">Technical Specifications</h2>
+            <div class="specs-table-container">
+                <table class="specs-table">
+                    <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="specs-table-body">
+                        <tr>
+                            <td colspan="2" style="text-align: center;">Loading technical specifications...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        
+        <!-- Call back / Instant Quote request -->
+        <section style="margin-top: 4rem; padding-top: 3.5rem; border-top: 1px solid var(--border-color);">
+            <div class="grid grid-cols-2" style="align-items: center; gap: 3rem;">
+                <div>
+                    <h2 class="section-title" style="margin-bottom: 1.25rem; text-align: left;">Need more details?</h2>
+                    <p style="color: var(--text-muted); line-height: 1.7; font-size: 1rem; margin-bottom: 1.5rem;">
+                        Fill out our short request form, and our certified Waaree solar systems technicians will call you back within 2 hours with customized structural layout plans and engineering estimations.
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 10px; color: var(--text-dark); font-weight: 600;">
+                            <i class="fas fa-check-circle" style="color:#25D366;"></i> Free Site Analysis & Engineering Design
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; color: var(--text-dark); font-weight: 600;">
+                            <i class="fas fa-check-circle" style="color:#25D366;"></i> PM Surya Ghar Yojana Subsidy Assistance
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; color: var(--text-dark); font-weight: 600;">
+                            <i class="fas fa-check-circle" style="color:#25D366;"></i> Warehouse Direct Dealer Wholesale Pricing
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-card">
+                    <h3 style="font-size: 1.35rem; margin-bottom: 1.5rem; color: var(--text-dark);">Request Callback</h3>
+                    <form id="product-lead-form">
+                        <div class="form-group">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" id="lead-name" class="form-control" required placeholder="Your full name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Phone Number</label>
+                            <input type="tel" id="lead-phone" class="form-control" required placeholder="+91 00000 00000">
+                        </div>
+                        <button type="submit" class="btn btn-accent" style="width: 100%; font-size: 0.95rem; padding: 0.9rem; font-weight: 700;" id="submit-btn">Submit Request</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-logo">Shree Krishna <span>Enterprises</span></div>
+            <p>&copy; 2026 Shree Krishna Enterprises. All rights reserved.</p>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-light);">Authorized Warehouse Dealer of Waaree Energies Ltd.</p>
+            <p style="font-size: 0.8rem; margin-top: 1.2rem; color: rgba(255, 255, 255, 0.4); letter-spacing: 0.05em; text-transform: uppercase;">
+                Developed by <span style="color: #25D366; font-weight: 600; text-transform: none;">Vishnu Patel</span>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast">
+        <i class="fas fa-check-circle" style="color: var(--primary-color);"></i> Request sent successfully!
+    </div>
+
+    <!-- Firebase Script imports and Logic -->
+    <script type="module" src="js/product-detail.js"></script>
+    <script>
+        // Header scroll effect
+        const header = document.getElementById('main-header');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 40) {
+                header.classList.add('scrolled');
+            }
+        });
+
+        // Mobile drawer toggles
+        const drawer = document.getElementById('mobile-drawer');
+        const overlay = document.getElementById('drawer-overlay');
+        const menuToggleBtn = document.getElementById('menu-toggle');
+        const closeDrawerBtn = document.getElementById('close-drawer');
+        const drawerLinks = document.querySelectorAll('.drawer-link');
+
+        function openDrawer() {
+            drawer.style.left = '0';
+            overlay.style.display = 'block';
+            setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+        }
+
+        function closeDrawer() {
+            drawer.style.left = '-100%';
+            overlay.style.opacity = '0';
+            setTimeout(() => { overlay.style.display = 'none'; }, 400);
+        }
+
+        if (window.innerWidth < 768) {
+            if (menuToggleBtn) menuToggleBtn.style.display = 'block';
+        }
+        if (menuToggleBtn) menuToggleBtn.addEventListener('click', openDrawer);
+        if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', closeDrawer);
+        if (overlay) overlay.onclick = closeDrawer;
+        drawerLinks.forEach(link => {
+            link.addEventListener('click', closeDrawer);
+        });
+
+
+    </script>
+</body>
+
+</html>

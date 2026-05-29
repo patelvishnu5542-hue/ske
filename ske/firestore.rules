@@ -1,0 +1,46 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Check if the user is authenticated (admin)
+    function isAdmin() {
+      return request.auth != null;
+    }
+
+    // Products: Public can read, only Admin can write
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Reviews: Public can read, only Admin can write/delete
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Leads: Public can create, Admin can read/update/delete
+    match /leads/{leadId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+    
+    // Admin config/users: Admin only
+    match /admin/{adminId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Hero Slides: Public can read, only Admin can write
+    match /hero_slides/{slideId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Gallery: Public can read, only Admin can write
+    match /gallery/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
