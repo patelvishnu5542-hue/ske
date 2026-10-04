@@ -1,46 +1,81 @@
 rules_version = '2';
 
+// Access model
+// - The public website reads catalogue content and creates leads. Nothing else.
+// - Only accounts listed in /admins/{uid} can change content or see leads.
+//   Being signed in is NOT enough: add the admin's UID in the Firebase console
+//   (Firestore > admins > document id = UID). Clients can never write /admins.
+// - Everything not matched below is denied.
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Check if the user is authenticated (admin)
-    function isAdmin() {
+
+    function signedIn() {
       return request.auth != null;
     }
 
-    // Products: Public can read, only Admin can write
-    match /products/{productId} {
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isText(value, minLen, maxLen) {
+      return value is string && value.size() >= minLen && value.size() <= maxLen;
+    }
+
+    function validLead(lead) {
+      return lead.keys().hasAll(['name', 'phone', 'status', 'createdAt'])
+        && lead.keys().hasOnly(['name', 'phone', 'message', 'source', 'status', 'createdAt'])
+        && isText(lead.name, 2, 80)
+        && lead.phone is string
+        && lead.phone.matches('^[+]?[0-9 ()-]{7,20}$')
+        && (!('message' in lead) || isText(lead.message, 0, 1000))
+        && (!('source' in lead) || isText(lead.source, 0, 200))
+        && lead.status == 'new'
+        && lead.createdAt == request.time;
+    }
+
+    // Admin allow-list. Managed only from the Firebase console.
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Public catalogue content.
+    match /products/{id} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Reviews: Public can read, only Admin can write/delete
-    match /reviews/{reviewId} {
+    match /hero_slides/{id} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Leads: Public can create, Admin can read/update/delete
-    match /leads/{leadId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
-    }
-    
-    // Admin config/users: Admin only
-    match /admin/{adminId} {
-      allow read, write: if isAdmin();
-    }
-
-    // Hero Slides: Public can read, only Admin can write
-    match /hero_slides/{slideId} {
+    match /gallery/{id} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Gallery: Public can read, only Admin can write
-    match /gallery/{itemId} {
+    match /reviews/{id} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Full-size images. Immutable: a changed photo gets a new document,
+    // which lets browsers cache these forever.
+    match /media/{id} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if false;
+    }
+
+    // Enquiries from the website forms. Contains personal data.
+    match /leads/{id} {
+      allow create: if validLead(request.resource.data);
+      allow read, delete: if isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['new', 'contacted'];
     }
   }
 }

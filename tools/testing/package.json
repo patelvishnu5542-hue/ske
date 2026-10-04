@@ -1,0 +1,16 @@
+{
+  "name": "ske-website",
+  "private": true,
+  "type": "module",
+  "description": "Test tools for the Shree Krishna Enterprises website. Not part of the website.",
+  "scripts": {
+    "emulators": "npx -y firebase-tools@14 emulators:start --project demo-ske",
+    "seed": "python3 seed_emulator.py",
+    "test:rules": "npx -y firebase-tools@14 emulators:exec --only firestore --project demo-ske \"node --test *.test.mjs\"",
+    "deploy:rules": "npx -y firebase-tools@14 deploy --only firestore:rules"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase": "^10.14.1"
+  }
+}

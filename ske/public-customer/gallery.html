@@ -3,246 +3,148 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
-    <!-- Primary SEO Meta Tags -->
-    <title>Solar Project Portfolio - Shree Krishna Enterprises</title>
+    <title>Gallery | Shree Krishna Enterprises</title>
     <meta name="description"
-        content="Browse our portfolio of high-efficiency solar panel installations. See residential, commercial, and industrial solar projects executed by Shree Krishna Enterprises in Rajasthan.">
-    <meta name="keywords"
-        content="Solar Gallery, Solar Installation Photos, Waaree Solar Projects, Shree Krishna Enterprises, Gudamalani Solar Portfolio, Rajasthan Solar Installations">
-    <meta name="author" content="Shree Krishna Enterprises">
-    <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://shreekrishnaenterprises.shop/gallery.html">
-    <meta name="theme-color" content="#25D366">
+        content="Photos from Shree Krishna Enterprises, authorized Waaree solar dealer.">
+    <link rel="canonical" href="https://shreekrishnaenterprises.shop/gallery">
+    <meta name="theme-color" content="#047857">
 
-    <!-- Open Graph / Facebook Meta Tags -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://shreekrishnaenterprises.shop/gallery.html">
-    <meta property="og:title" content="Solar Project Portfolio - Shree Krishna Enterprises">
-    <meta property="og:description"
-        content="Browse our portfolio of high-efficiency solar panel installations. See residential, commercial, and industrial solar projects executed by Shree Krishna Enterprises in Rajasthan.">
-    <meta property="og:image" content="https://shreekrishnaenterprises.shop/icon-512.png">
+    <meta property="og:url" content="https://shreekrishnaenterprises.shop/gallery">
     <meta property="og:site_name" content="Shree Krishna Enterprises">
-
-    <!-- Twitter Card Meta Tags -->
+    <meta property="og:title" content="Gallery | Shree Krishna Enterprises">
+    <meta property="og:description"
+        content="Photos from Shree Krishna Enterprises.">
+    <meta property="og:image" content="https://shreekrishnaenterprises.shop/img/og-image.jpg">
+    <meta property="og:image:width" content="952">
+    <meta property="og:image:height" content="500">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://shreekrishnaenterprises.shop/gallery.html">
-    <meta name="twitter:title" content="Solar Project Portfolio - Shree Krishna Enterprises">
-    <meta name="twitter:description"
-        content="Browse our portfolio of high-efficiency solar panel installations. See residential, commercial, and industrial solar projects executed by Shree Krishna Enterprises in Rajasthan.">
-    <meta name="twitter:image" content="https://shreekrishnaenterprises.shop/icon-512.png">
+    <meta name="twitter:image" content="https://shreekrishnaenterprises.shop/img/og-image.jpg">
 
-    <!-- Client-Side DevTools Prevention Script -->
-    <script src="js/security.js"></script>
-
-    <!-- Favicon & App Icons -->
-    <link rel="icon" type="image/svg+xml" href="icon.svg">
-    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-    <link rel="apple-touch-icon" href="icon-192.png">
-
-    <!-- PWA & Mobile Optimization -->
+    <link rel="icon" type="image/png" sizes="48x48" href="favicon.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <link rel="manifest" href="manifest.json">
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Main Stylesheet -->
-    <link rel="stylesheet" href="css/style.css">
-
-    <style>
-        .gallery-page-container {
-            margin-top: 120px;
-            margin-bottom: 80px;
-            min-height: 60vh;
-        }
-
-        .btn-back {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-dark);
-            font-weight: 600;
-            margin-bottom: 2rem;
-            transition: var(--transition-smooth);
-            font-size: 0.95rem;
-            text-decoration: none;
-        }
-
-        .btn-back:hover {
-            color: var(--primary-dark);
-            transform: translateX(-4px);
-        }
-
-        .gallery-header {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-
-        .gallery-header h1 {
-            font-size: 2.75rem;
-            font-weight: 800;
-            color: var(--text-dark);
-            margin-top: 0.5rem;
-            letter-spacing: -0.03em;
-        }
-    </style>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="preload" href="fonts/inter-latin.woff2?v=c9407645" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/outfit-latin.woff2?v=92684e4a" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="css/style.css?v=8e543a80">
+    <script type="module" src="js/gallery.js?v=54406783"></script>
 </head>
 
-<body class="reveal-site">
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
 
-    <!-- Header -->
     <header id="main-header" class="scrolled">
         <div class="container navbar">
-            <a href="index.html" class="logo">Shree Krishna Enterprises</a>
-            <nav class="nav-links" id="navbar-menu">
-                <a href="index.html#products">Products</a>
-                <a href="index.html#about">About</a>
-                <a href="index.html#services">Services</a>
-                <a href="index.html#gallery" class="active">Gallery</a>
-                <a href="index.html#contact">Contact</a>
+            <a href="./" class="logo">Shree Krishna Enterprises</a>
+            <nav class="nav-links" aria-label="Main">
+                <a href="./#products">Products</a>
+                <a href="./#about">About</a>
+                <a href="./#services">Services</a>
+                <a href="gallery.html" aria-current="page">Gallery</a>
+                <a href="./#contact">Contact</a>
             </nav>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <button id="menu-toggle" class="btn"
-                    style="display: none; background: transparent; padding: 0.5rem; font-size: 1.25rem; color: #ffffff; border: none;"><i
-                        class="fas fa-bars"></i></button>
-            </div>
+            <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Open menu"
+                aria-controls="mobile-drawer" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#menu"></use></svg></button>
         </div>
     </header>
 
-    <!-- Mobile Drawer -->
-    <div id="mobile-drawer"
-        style="position: fixed; top: 0; left: -100%; width: 280px; height: 100%; background: white; z-index: 150; box-shadow: var(--shadow-lg); transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1); padding: 2rem 1.5rem; display: flex; flex-direction: column; gap: 2rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <a href="index.html" class="logo" style="color: #25D366 !important;">Shree Krishna Enterprises</a>
-            <button id="close-drawer" style="background: none; border: none; font-size: 1.25rem; cursor: pointer;"><i
-                    class="fas fa-times"></i></button>
+    <div id="mobile-drawer" class="mobile-drawer" role="dialog" aria-modal="true" aria-label="Menu">
+        <div class="drawer-head">
+            <a href="./" class="logo">Shree Krishna Enterprises</a>
+            <button id="close-drawer" class="drawer-close" type="button" aria-label="Close menu"><svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#close"></use></svg></button>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 2rem;">
-            <a href="index.html#products" class="drawer-link" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">Products</a>
-            <a href="index.html#about" class="drawer-link" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">About Us</a>
-            <a href="index.html#services" class="drawer-link" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">Services</a>
-            <a href="index.html#gallery" class="drawer-link" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">Gallery</a>
-            <a href="index.html#contact" class="drawer-link" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">Contact</a>
-        </div>
-        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
-            <a href="tel:+919999999999" class="btn btn-outline" style="width: 100%;"><i class="fas fa-phone-alt"></i> Call Now</a>
-            <a href="https://wa.me/919999999999" class="btn btn-primary"
-                style="width: 100%; background-color: #25D366; border-color: #25D366;"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+        <nav class="drawer-links" aria-label="Mobile">
+            <a href="./#products">Products</a>
+            <a href="./#about">About us</a>
+            <a href="./#services">Services</a>
+            <a href="gallery.html" aria-current="page">Gallery</a>
+            <a href="./#contact">Contact</a>
+        </nav>
+        <div class="drawer-actions">
+            <a href="tel:+919829545113" class="btn btn-outline"><svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#phone"></use></svg> Call now</a>
+            <a href="https://wa.me/919829545113?text=%E0%A4%A8%E0%A4%AE%E0%A4%B8%E0%A5%8D%E0%A4%A4%E0%A5%87%20%E0%A4%B6%E0%A5%8D%E0%A4%B0%E0%A5%80%20%E0%A4%95%E0%A5%83%E0%A4%B7%E0%A5%8D%E0%A4%A3%E0%A4%BE%20%E0%A4%8F%E0%A4%82%E0%A4%9F%E0%A4%B0%E0%A4%AA%E0%A5%8D%E0%A4%B0%E0%A4%BE%E0%A4%87%E0%A4%9C%E0%A5%87%E0%A4%9C%2C%20%E0%A4%AE%E0%A5%88%E0%A4%82%E0%A4%A8%E0%A5%87%20%E0%A4%86%E0%A4%AA%E0%A4%95%E0%A5%80%20%E0%A4%B5%E0%A5%87%E0%A4%AC%E0%A4%B8%E0%A4%BE%E0%A4%87%E0%A4%9F%20%E0%A4%A6%E0%A5%87%E0%A4%96%E0%A5%80%E0%A5%A4%20%E0%A4%AE%E0%A5%81%E0%A4%9D%E0%A5%87%20%E0%A4%B8%E0%A5%8B%E0%A4%B2%E0%A4%B0%20%E0%A4%B8%E0%A4%BF%E0%A4%B8%E0%A5%8D%E0%A4%9F%E0%A4%AE%20%E0%A4%B2%E0%A4%97%E0%A4%B5%E0%A4%BE%E0%A4%A8%E0%A4%BE%20%E0%A4%B9%E0%A5%88%2C%20%E0%A4%95%E0%A5%83%E0%A4%AA%E0%A4%AF%E0%A4%BE%20%E0%A4%95%E0%A5%80%E0%A4%AE%E0%A4%A4%20%E0%A4%94%E0%A4%B0%20%E0%A4%B8%E0%A4%AC%E0%A5%8D%E0%A4%B8%E0%A4%BF%E0%A4%A1%E0%A5%80%20%E0%A4%95%E0%A5%80%20%E0%A4%9C%E0%A4%BE%E0%A4%A8%E0%A4%95%E0%A4%BE%E0%A4%B0%E0%A5%80%20%E0%A4%A6%E0%A5%87%E0%A4%82%E0%A5%A4"
+                class="btn btn-whatsapp" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#whatsapp"></use></svg> WhatsApp</a>
+            <p class="credit">Developed by <span>Vishnu Patel</span></p>
         </div>
     </div>
-    <div id="drawer-overlay"
-        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 140; display: none; opacity: 0; transition: opacity 0.4s ease;">
-    </div>
+    <div id="drawer-overlay" class="drawer-overlay"></div>
 
-    <!-- Gallery Container -->
-    <main class="container gallery-page-container">
-        <a href="index.html" class="btn-back"><i class="fas fa-arrow-left"></i> Back to Home</a>
-        
+    <main id="main" class="container gallery-page-container">
+        <a href="./" class="btn-back"><svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#arrow-left"></use></svg> Back to home</a>
+
         <div class="gallery-header">
-            <span class="section-tag">Visual Portfolio</span>
-            <h1>Solar Installation Gallery</h1>
+            <h1>Gallery</h1>
         </div>
 
-        <!-- Gallery Category Filters -->
-        <div class="gallery-filters" id="gallery-filters-container">
-            <button class="gallery-filter-btn active" data-filter="all">All Projects</button>
-            <button class="gallery-filter-btn" data-filter="Residential Solar">Residential</button>
-            <button class="gallery-filter-btn" data-filter="Commercial Solar">Commercial</button>
-            <button class="gallery-filter-btn" data-filter="Industrial Solar">Industrial</button>
-            <button class="gallery-filter-btn" data-filter="Other">Other</button>
+        <div class="gallery-filters" id="gallery-filters-container" role="group" aria-label="Filter photos" hidden></div>
+
+        <div class="gallery-grid-masonry" id="gallery-grid-container" aria-live="polite">
+            <div class="gallery-card-skeleton" aria-hidden="true"></div>
+            <div class="gallery-card-skeleton" aria-hidden="true"></div>
+            <div class="gallery-card-skeleton" aria-hidden="true"></div>
+            <div class="gallery-card-skeleton" aria-hidden="true"></div>
+            <div class="gallery-card-skeleton" aria-hidden="true"></div>
+            <div class="gallery-card-skeleton" aria-hidden="true"></div>
         </div>
 
-        <!-- Gallery Grid -->
-        <div class="gallery-grid-masonry" id="gallery-grid-container">
-            <!-- Gallery Skeletons -->
-            <div class="gallery-card-skeleton"></div>
-            <div class="gallery-card-skeleton"></div>
-            <div class="gallery-card-skeleton"></div>
-            <div class="gallery-card-skeleton"></div>
-            <div class="gallery-card-skeleton"></div>
-            <div class="gallery-card-skeleton"></div>
+        <div class="gallery-more">
+            <button type="button" class="btn btn-outline" id="gallery-load-more" hidden>Load more photos</button>
         </div>
     </main>
 
-    <!-- Footer -->
     <footer>
-        <div class="container">
-            <div class="footer-logo">Shree Krishna <span>Enterprises</span></div>
-            <p>&copy; 2026 Shree Krishna Enterprises. All rights reserved.</p>
-            <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-light);">Authorized Warehouse Dealer of Waaree Energies Ltd.</p>
-            <p style="font-size: 0.8rem; margin-top: 1.2rem; color: rgba(255, 255, 255, 0.4); letter-spacing: 0.05em; text-transform: uppercase;">
-                Developed by <span style="color: #25D366; font-weight: 600; text-transform: none;">Vishnu Patel</span>
-            </p>
+        <div class="container footer-grid">
+            <div class="footer-brand">
+                <div class="footer-logo">Shree Krishna <span>Enterprises</span></div>
+                <p>Authorized warehouse dealer of Waaree Energies Ltd. Solar panels, inverters and complete
+                    rooftop systems for homes and businesses.</p>
+            </div>
+            <nav class="footer-links" aria-label="Footer">
+                <h2>Explore</h2>
+                <a href="./#products">Products</a>
+                <a href="./#services">Services</a>
+                <a href="gallery.html">Gallery</a>
+                <a href="./#contact">Contact</a>
+            </nav>
+            <div class="footer-contact">
+                <h2>Contact</h2>
+                <a href="tel:+919829545113"><svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#phone"></use></svg> +91 98295 45113</a>
+                <a href="https://wa.me/919829545113?text=%E0%A4%A8%E0%A4%AE%E0%A4%B8%E0%A5%8D%E0%A4%A4%E0%A5%87%20%E0%A4%B6%E0%A5%8D%E0%A4%B0%E0%A5%80%20%E0%A4%95%E0%A5%83%E0%A4%B7%E0%A5%8D%E0%A4%A3%E0%A4%BE%20%E0%A4%8F%E0%A4%82%E0%A4%9F%E0%A4%B0%E0%A4%AA%E0%A5%8D%E0%A4%B0%E0%A4%BE%E0%A4%87%E0%A4%9C%E0%A5%87%E0%A4%9C%2C%20%E0%A4%AE%E0%A5%88%E0%A4%82%E0%A4%A8%E0%A5%87%20%E0%A4%86%E0%A4%AA%E0%A4%95%E0%A5%80%20%E0%A4%B5%E0%A5%87%E0%A4%AC%E0%A4%B8%E0%A4%BE%E0%A4%87%E0%A4%9F%20%E0%A4%A6%E0%A5%87%E0%A4%96%E0%A5%80%E0%A5%A4%20%E0%A4%AE%E0%A5%81%E0%A4%9D%E0%A5%87%20%E0%A4%B8%E0%A5%8B%E0%A4%B2%E0%A4%B0%20%E0%A4%B8%E0%A4%BF%E0%A4%B8%E0%A5%8D%E0%A4%9F%E0%A4%AE%20%E0%A4%B2%E0%A4%97%E0%A4%B5%E0%A4%BE%E0%A4%A8%E0%A4%BE%20%E0%A4%B9%E0%A5%88%2C%20%E0%A4%95%E0%A5%83%E0%A4%AA%E0%A4%AF%E0%A4%BE%20%E0%A4%95%E0%A5%80%E0%A4%AE%E0%A4%A4%20%E0%A4%94%E0%A4%B0%20%E0%A4%B8%E0%A4%AC%E0%A5%8D%E0%A4%B8%E0%A4%BF%E0%A4%A1%E0%A5%80%20%E0%A4%95%E0%A5%80%20%E0%A4%9C%E0%A4%BE%E0%A4%A8%E0%A4%95%E0%A4%BE%E0%A4%B0%E0%A5%80%20%E0%A4%A6%E0%A5%87%E0%A4%82%E0%A5%A4" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#whatsapp"></use></svg> WhatsApp us</a>
+                <a href="mailto:bchoudhary249@gmail.com"><svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#mail"></use></svg> bchoudhary249@gmail.com</a>
+                <p><svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#pin"></use></svg> Near Jeevan Hospital, Gudamalani, Rajasthan 344031</p>
+            </div>
+        </div>
+        <div class="container footer-bottom">
+            <p>&copy; <span data-year>2026</span> Shree Krishna Enterprises. All rights reserved.</p>
+            <p class="credit">Developed by <span>Vishnu Patel</span></p>
         </div>
     </footer>
 
-    <!-- Lightbox Modal -->
-    <div id="gallery-lightbox" class="lightbox-overlay">
-        <button class="lightbox-close" id="lightbox-close-btn" aria-label="Close Lightbox">&times;</button>
-        <button class="lightbox-nav nav-prev" id="lightbox-prev-btn" aria-label="Previous Image"><i class="fas fa-chevron-left"></i></button>
+    <div id="gallery-lightbox" class="lightbox-overlay" role="dialog" aria-modal="true" aria-label="Photo viewer" hidden>
+        <button class="lightbox-close" id="lightbox-close-btn" type="button" aria-label="Close">&times;</button>
+        <button class="lightbox-nav nav-prev" id="lightbox-prev-btn" type="button" aria-label="Previous photo"><svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#chevron-left"></use></svg></button>
         <div class="lightbox-content">
-            <img src="" id="lightbox-img" alt="Enlarged gallery view">
+            <img id="lightbox-img" alt="">
             <div class="lightbox-caption-box">
-                <span class="lightbox-category" id="lightbox-cat">Category</span>
-                <p class="lightbox-caption" id="lightbox-desc">Caption text</p>
+                <span class="lightbox-category" id="lightbox-cat"></span>
+                <p class="lightbox-caption" id="lightbox-desc"></p>
             </div>
         </div>
-        <button class="lightbox-nav nav-next" id="lightbox-next-btn" aria-label="Next Image"><i class="fas fa-chevron-right"></i></button>
+        <button class="lightbox-nav nav-next" id="lightbox-next-btn" type="button" aria-label="Next photo"><svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#chevron-right"></use></svg></button>
     </div>
 
-    <!-- Floating WhatsApp -->
-    <a href="https://wa.me/919999999999" class="floating-whatsapp" id="floating-wa" target="_blank">
-        <i class="fab fa-whatsapp"></i>
+    <a href="https://wa.me/919829545113?text=%E0%A4%A8%E0%A4%AE%E0%A4%B8%E0%A5%8D%E0%A4%A4%E0%A5%87%20%E0%A4%B6%E0%A5%8D%E0%A4%B0%E0%A5%80%20%E0%A4%95%E0%A5%83%E0%A4%B7%E0%A5%8D%E0%A4%A3%E0%A4%BE%20%E0%A4%8F%E0%A4%82%E0%A4%9F%E0%A4%B0%E0%A4%AA%E0%A5%8D%E0%A4%B0%E0%A4%BE%E0%A4%87%E0%A4%9C%E0%A5%87%E0%A4%9C%2C%20%E0%A4%AE%E0%A5%88%E0%A4%82%E0%A4%A8%E0%A5%87%20%E0%A4%86%E0%A4%AA%E0%A4%95%E0%A5%80%20%E0%A4%B5%E0%A5%87%E0%A4%AC%E0%A4%B8%E0%A4%BE%E0%A4%87%E0%A4%9F%20%E0%A4%A6%E0%A5%87%E0%A4%96%E0%A5%80%E0%A5%A4%20%E0%A4%AE%E0%A5%81%E0%A4%9D%E0%A5%87%20%E0%A4%B8%E0%A5%8B%E0%A4%B2%E0%A4%B0%20%E0%A4%B8%E0%A4%BF%E0%A4%B8%E0%A5%8D%E0%A4%9F%E0%A4%AE%20%E0%A4%B2%E0%A4%97%E0%A4%B5%E0%A4%BE%E0%A4%A8%E0%A4%BE%20%E0%A4%B9%E0%A5%88%2C%20%E0%A4%95%E0%A5%83%E0%A4%AA%E0%A4%AF%E0%A4%BE%20%E0%A4%95%E0%A5%80%E0%A4%AE%E0%A4%A4%20%E0%A4%94%E0%A4%B0%20%E0%A4%B8%E0%A4%AC%E0%A5%8D%E0%A4%B8%E0%A4%BF%E0%A4%A1%E0%A5%80%20%E0%A4%95%E0%A5%80%20%E0%A4%9C%E0%A4%BE%E0%A4%A8%E0%A4%95%E0%A4%BE%E0%A4%B0%E0%A5%80%20%E0%A4%A6%E0%A5%87%E0%A4%82%E0%A5%A4"
+        class="floating-whatsapp" id="floating-wa" target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp">
+        <svg class="icon" aria-hidden="true"><use href="img/icons.svg?v=28bdd682#whatsapp"></use></svg>
         <span class="wa-text">Chat with Us</span>
     </a>
 
-    <!-- Firebase Script imports and Logic -->
-    <script type="module" src="js/gallery.js"></script>
-    <script>
-        // Header scroll effect
-        const header = document.getElementById('main-header');
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 40) {
-                header.classList.add('scrolled');
-            }
-        });
-
-        // Mobile drawer toggles
-        const drawer = document.getElementById('mobile-drawer');
-        const overlay = document.getElementById('drawer-overlay');
-        const menuToggleBtn = document.getElementById('menu-toggle');
-        const closeDrawerBtn = document.getElementById('close-drawer');
-        const drawerLinks = document.querySelectorAll('.drawer-link');
-
-        function openDrawer() {
-            drawer.style.left = '0';
-            overlay.style.display = 'block';
-            setTimeout(() => { overlay.style.opacity = '1'; }, 10);
-        }
-
-        function closeDrawer() {
-            drawer.style.left = '-100%';
-            overlay.style.opacity = '0';
-            setTimeout(() => { overlay.style.display = 'none'; }, 400);
-        }
-
-        if (window.innerWidth < 768) {
-            if (menuToggleBtn) menuToggleBtn.style.display = 'block';
-        }
-        if (menuToggleBtn) menuToggleBtn.addEventListener('click', openDrawer);
-        if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', closeDrawer);
-        if (overlay) overlay.onclick = closeDrawer;
-        drawerLinks.forEach(link => {
-            link.addEventListener('click', closeDrawer);
-        });
-    </script>
+    <div id="toast" role="status" aria-live="polite"></div>
 </body>
 
 </html>

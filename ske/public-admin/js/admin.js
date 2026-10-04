@@ -1,898 +1,802 @@
-import { auth, db } from './firebase-config.js';
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
-onAuthStateChanged(auth, (user) => {
- if (!user) {
- window.location.href = "index.html";
- } else {
- initDashboard();
- }
+// Admin dashboard: products, reviews, leads, hero slides, gallery, backup and
+// photo optimisation. Every value read from Firestore is escaped with esc()
+// before it is put into HTML: leads are typed by the public.
+import { auth, db, usingEmulator } from './firebase.js?v=1608c3ca';
+import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js';
+import {
+  collection, doc, getDoc, getDocs, writeBatch, updateDoc, deleteDoc, addDoc,
+  serverTimestamp, deleteField,
+} from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js';
+import { esc, safeImageSrc, formatINR, formatDate, newestFirst, phoneDigits } from './util.js?v=e836cea1';
+import { SIZES, makeThumb, addMediaToBatch, loadMedia, legacyImagesOf, isLegacyImage } from './images.js?v=5018f028';
+
+const state = { products: [], reviews: [], leads: [], slides: [], gallery: [] };
+// PM Surya Ghar central subsidy cap for residential rooftop systems.
+const CENTRAL_SUBSIDY_MAX = 78000;
+const $ = (id) => document.getElementById(id);
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    location.replace(`index.html${location.search}`);
+    return;
+  }
+  let allowed;
+  try {
+    allowed = (await getDoc(doc(db, 'admins', user.uid))).exists();
+  } catch (err) {
+    allowed = err.code === 'permission-denied' ? false : null;
+  }
+  if (allowed === null) {
+    showBlockingMessage('Could not reach the database', '<p>Check your internet connection and reload the page.</p>');
+    return;
+  }
+  if (!allowed) {
+    showBlockingMessage('This account is not an admin', `
+      <p>You are signed in as <strong>${esc(user.email)}</strong>, but this account is not on the admin list.</p>
+      <p>The project owner can grant access in the Firebase console: Firestore Database &rarr; collection
+      <strong>admins</strong> &rarr; add a document whose ID is this user ID:</p>
+      <code>${esc(user.uid)}</code>`);
+    return;
+  }
+  document.body.classList.remove('auth-pending');
+  if (usingEmulator) $('emulator-badge').hidden = false;
+  loadAll();
 });
-document.getElementById('logout-btn').addEventListener('click', () => {
- signOut(auth);
-});
+
+function showBlockingMessage(title, html) {
+  document.body.classList.remove('auth-pending');
+  document.body.innerHTML = `
+    <div class="access-denied">
+      <h1 style="font-size: 1.4rem; margin-bottom: 1rem;">${esc(title)}</h1>
+      ${html}
+      <button type="button" class="btn btn-primary" id="denied-logout" style="margin-top: 1rem;">Sign out</button>
+    </div>`;
+  $('denied-logout').addEventListener('click', () => signOut(auth));
+}
+
+// ---------- Navigation ----------
+
 const sidebar = document.querySelector('.sidebar');
-const overlay = document.getElementById('admin-sidebar-overlay');
-const toggleBtn = document.getElementById('toggle-sidebar');
-function closeSidebarMobile() {
- if (sidebar && overlay) {
- sidebar.classList.remove('active');
- overlay.classList.remove('active');
- }
+const sidebarOverlay = $('admin-sidebar-overlay');
+
+function closeSidebar() {
+  sidebar.classList.remove('active');
+  sidebarOverlay.classList.remove('active');
 }
-if (toggleBtn && sidebar && overlay) {
- toggleBtn.addEventListener('click', () => {
- sidebar.classList.toggle('active');
- overlay.classList.toggle('active');
- });
- overlay.addEventListener('click', () => {
- closeSidebarMobile();
- });
-}
-function navigateToSection(targetId) {
- if (!targetId) return;
- document.querySelectorAll('.nav-item').forEach(nav => {
- if (nav.getAttribute('data-target') === targetId) {
- nav.classList.add('active');
- } else {
- nav.classList.remove('active');
- }
- });
- document.querySelectorAll('.dashboard-section').forEach(sec => {
- if (sec.id === targetId) {
- sec.classList.add('active');
- } else {
- sec.classList.remove('active');
- }
- });
- closeSidebarMobile();
- window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-document.querySelectorAll('.nav-item').forEach(item => {
- if (item.id === 'logout-btn') return;
- item.addEventListener('click', (e) => {
- e.preventDefault();
- const targetId = item.getAttribute('data-target');
- navigateToSection(targetId);
- });
+
+$('toggle-sidebar').addEventListener('click', () => {
+  sidebar.classList.toggle('active');
+  sidebarOverlay.classList.toggle('active');
 });
-document.querySelectorAll('.stat-card').forEach(card => {
- card.addEventListener('click', () => {
- const targetId = card.getAttribute('data-target');
- navigateToSection(targetId);
- });
+sidebarOverlay.addEventListener('click', closeSidebar);
+$('logout-btn').addEventListener('click', (e) => {
+  e.preventDefault();
+  signOut(auth);
 });
-let productsList = [];
-let slidesList = [];
-let leadsList = [];
-let galleryList = [];
-async function initDashboard() {
- await loadProducts();
- await loadReviews();
- await loadLeads();
- await loadSlides();
- await loadGallery();
- updateStats();
+
+function showSection(targetId) {
+  document.querySelectorAll('.nav-item[data-target]').forEach((nav) => {
+    nav.classList.toggle('active', nav.dataset.target === targetId);
+  });
+  document.querySelectorAll('.dashboard-section').forEach((section) => {
+    section.classList.toggle('active', section.id === targetId);
+  });
+  closeSidebar();
+  window.scrollTo({ top: 0 });
 }
-async function loadProducts() {
- const tbody = document.getElementById('products-table-body');
- tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
- try {
- const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
- const snapshot = await getDocs(q);
- productsList = [];
- tbody.innerHTML = '';
- snapshot.forEach(d => {
- const product = { id: d.id, ...d.data() };
- productsList.push(product);
- const priceHtml = (product.price || product.discountedPrice || product.capacity || product.subsidy) ? `
- <div class="product-prices-meta" style="font-size: 0.8rem; margin-top: 5px; color: var(--text-muted); line-height: 1.5; text-align: inherit;">
- ${product.capacity ? `<span style="background: rgba(52, 183, 241, 0.1); color: #34b7f1; border: 1px solid rgba(52, 183, 241, 0.15); padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; margin-bottom: 4px; display: inline-block;"><i class="fas fa-bolt"></i> ${product.capacity} kW</span>` : ''}
- ${product.price ? `<div>Market Price: <span style="text-decoration: line-through;">₹${product.price.toLocaleString('en-IN')}</span></div>` : ''} 
- ${product.discountedPrice ? `<div>Disc. Price: <span style="color: #25D366; font-weight: bold;">₹${product.discountedPrice.toLocaleString('en-IN')}</span></div>` : ''}
- ${product.subsidy ? `<div>Govt Subsidy: <span style="color: #f59e0b; font-weight: bold;">-₹${parseFloat(product.subsidy).toLocaleString('en-IN')}</span></div>` : ''}
- </div>
- ` : '';
- const tr = document.createElement('tr');
- tr.innerHTML = `
- <td data-label="Image"><img src="${product.imageURL}" alt="product" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
- <td data-label="Product">
- <div class="table-cell-details">
- <strong>${product.name}</strong>
- ${priceHtml}
- </div>
- </td>
- <td data-label="Category">${product.category}</td>
- <td data-label="Status"><span class="badge ${product.isActive ? 'badge-success' : 'badge-warning'}">${product.isActive ? 'Active' : 'Inactive'}</span></td>
- <td data-label="Actions">
- <button class="btn btn-primary btn-edit" data-id="${product.id}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Edit</button>
- <button class="btn btn-danger btn-delete" data-id="${product.id}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
- </td>
- `;
- tbody.appendChild(tr);
- });
- document.querySelectorAll('.btn-edit').forEach(btn => {
- btn.addEventListener('click', (e) => openModal(e.target.getAttribute('data-id')));
- });
- document.querySelectorAll('.btn-delete').forEach(btn => {
- btn.addEventListener('click', (e) => deleteProduct(e.target.getAttribute('data-id')));
- });
- } catch(err) {
- console.error(err);
- tbody.innerHTML = '<tr><td colspan="5" style="color:red;">Error loading products</td></tr>';
- }
+
+document.querySelectorAll('.nav-item[data-target], .stat-card[data-target]').forEach((el) => {
+  el.addEventListener('click', (e) => {
+    e.preventDefault();
+    showSection(el.dataset.target);
+  });
+});
+
+document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+  btn.addEventListener('click', () => btn.closest('.modal').classList.remove('active'));
+});
+
+// One listener for every table button: <button data-action="..." data-id="...">.
+const actions = {};
+document.addEventListener('click', (e) => {
+  const button = e.target.closest('[data-action]');
+  if (button && actions[button.dataset.action]) actions[button.dataset.action](button.dataset.id, button);
+});
+
+// ---------- Loading ----------
+
+async function fetchAll(name) {
+  const snap = await getDocs(collection(db, name));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort(newestFirst);
 }
+
+async function loadAll() {
+  await Promise.all([loadProducts(), loadReviews(), loadLeads(), loadSlides(), loadGallery()]);
+  updateToolsStatus();
+}
+
+function fillTable(tbodyId, items, rowHtml, columns, emptyText) {
+  $(tbodyId).innerHTML = items.length
+    ? items.map(rowHtml).join('')
+    : `<tr><td colspan="${columns}" class="muted">${esc(emptyText)}</td></tr>`;
+}
+
+async function loadList(key, collectionName, tbodyId, columns, rowHtml, emptyText, statId) {
+  $(tbodyId).innerHTML = `<tr><td colspan="${columns}">Loading…</td></tr>`;
+  try {
+    state[key] = await fetchAll(collectionName);
+    fillTable(tbodyId, state[key], rowHtml, columns, emptyText);
+    $(statId).textContent = state[key].length;
+  } catch (err) {
+    console.error(`${collectionName} not loaded:`, err);
+    $(tbodyId).innerHTML = `<tr><td colspan="${columns}" style="color: #ef4444;">Could not load. Reload the page.</td></tr>`;
+  }
+}
+
+function coverOf(record) {
+  return safeImageSrc(record.cover || legacyImagesOf(record)[0] || record.image);
+}
+
+function statusBadge(active, on = 'Active', off = 'Hidden') {
+  return `<span class="badge ${active ? 'badge-success' : 'badge-warning'}">${active ? on : off}</span>`;
+}
+
+function thumbCell(record) {
+  const src = coverOf(record);
+  return `<td data-label="Image">${src ? `<img class="thumb" src="${src}" alt="">` : '<span class="muted">No photo</span>'}</td>`;
+}
+
+function actionButtons(...buttons) {
+  return `<td data-label="Actions"><div class="table-actions">${buttons.join('')}</div></td>`;
+}
+
+function button(action, id, label, style = 'btn-primary') {
+  return `<button type="button" class="btn ${style} btn-sm" data-action="${action}" data-id="${esc(id)}">${esc(label)}</button>`;
+}
+
+// ---------- Products ----------
+
+const loadProducts = () => loadList('products', 'products', 'products-table-body', 5, productRow, 'No products yet.', 'stat-products');
+
+function productRow(p) {
+  const meta = [
+    Number(p.capacity) > 0 ? `<div>${esc(p.capacity)} kW</div>` : '',
+    p.price ? `<div>Price: ${formatINR(p.price)}</div>` : '',
+    p.discountedPrice ? `<div>Discounted: ${formatINR(p.discountedPrice)}</div>` : '',
+    p.subsidy ? `<div>Central subsidy: −${formatINR(Math.min(Number(p.subsidy), CENTRAL_SUBSIDY_MAX))}</div>` : '',
+    p.stateSubsidy != null ? `<div>State subsidy*: ${Number(p.stateSubsidy) > 0 ? `−${formatINR(p.stateSubsidy)}` : 'none'}</div>` : '',
+  ].join('');
+  return `
+    <tr>
+      ${thumbCell(p)}
+      <td data-label="Product"><div class="table-cell-details"><strong>${esc(p.name)}</strong>
+        <div class="product-prices-meta" style="font-size: 0.8rem; margin-top: 5px; color: var(--text-muted);">${meta}</div></div></td>
+      <td data-label="Category">${esc(p.category)}</td>
+      <td data-label="Status">${statusBadge(p.isActive)}</td>
+      ${actionButtons(button('edit-product', p.id, 'Edit'), button('delete-product', p.id, 'Delete', 'btn-danger'))}
+    </tr>`;
+}
+
+// Photos in the open product form: { id } for stored media, { source } for new ones.
+let productImages = [];
+let productMediaBefore = [];
+
+function renderImagePreviews(containerId, images, onRemove) {
+  const container = $(containerId);
+  container.innerHTML = images.map((img, i) => `
+    <div class="image-preview">
+      ${img.src ? `<img src="${safeImageSrc(img.src) || (img.src.startsWith('blob:') ? img.src : '')}" alt="">` : '<span class="muted" style="font-size: 10px; padding: 4px;">Loading…</span>'}
+      ${i === 0 ? '<span class="first-label">Cover</span>' : ''}
+      <button type="button" class="remove-img" data-index="${i}" aria-label="Remove photo">&times;</button>
+    </div>`).join('');
+  container.querySelectorAll('.remove-img').forEach((btn) => {
+    btn.addEventListener('click', () => onRemove(Number(btn.dataset.index)));
+  });
+}
+
+function renderProductImages() {
+  renderImagePreviews('product-images-preview-container', productImages, (i) => {
+    productImages.splice(i, 1);
+    renderProductImages();
+  });
+}
+
 function addSpecRow(key = '', value = '') {
- const container = document.getElementById('specs-input-container');
- if (!container) return;
- const div = document.createElement('div');
- div.className = 'spec-row';
- div.style.display = 'flex';
- div.style.gap = '8px';
- div.style.alignItems = 'center';
- div.style.marginBottom = '8px';
- div.innerHTML = `
- <input type="text" class="spec-key" placeholder="Key (e.g. Dimensions)" value="${key}" style="flex: 1; padding: 0.4rem 0.6rem; font-size: 0.85rem;" required>
- <input type="text" class="spec-value" placeholder="Value (e.g. 2000x1000)" value="${value}" style="flex: 1; padding: 0.4rem 0.6rem; font-size: 0.85rem;" required>
- <button type="button" class="btn btn-danger delete-spec-row-btn" style="padding: 0.4rem; font-size: 0.85rem;"><i class="fas fa-trash"></i></button>
- `;
- div.querySelector('.delete-spec-row-btn').addEventListener('click', () => div.remove());
- container.appendChild(div);
+  const row = document.createElement('div');
+  row.className = 'spec-row';
+  row.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+  row.innerHTML = `
+    <input type="text" class="spec-key" placeholder="e.g. Dimensions" maxlength="80" style="flex: 1; padding: 0.4rem 0.6rem; font-size: 0.85rem;" required>
+    <input type="text" class="spec-value" placeholder="e.g. 2000 x 1000 mm" maxlength="200" style="flex: 1; padding: 0.4rem 0.6rem; font-size: 0.85rem;" required>
+    <button type="button" class="btn btn-danger btn-sm" aria-label="Remove specification">&times;</button>`;
+  row.querySelector('.spec-key').value = key;
+  row.querySelector('.spec-value').value = value;
+  row.querySelector('button').addEventListener('click', () => row.remove());
+  $('specs-input-container').append(row);
 }
-document.getElementById('add-spec-row-btn')?.addEventListener('click', () => addSpecRow());
-let uploadedProductImages = [];
+$('add-spec-row-btn').addEventListener('click', () => addSpecRow());
 
-function renderProductPreviews() {
-    const container = document.getElementById('product-images-preview-container');
-    if (!container) return;
-    container.innerHTML = '';
-    uploadedProductImages.forEach((imgSrc, idx) => {
-        const div = document.createElement('div');
-        div.style.position = 'relative';
-        div.style.width = '80px';
-        div.style.height = '80px';
-        div.style.borderRadius = '8px';
-        div.style.overflow = 'hidden';
-        div.style.border = '1px solid var(--border-color)';
-        div.innerHTML = `
-            <img src="${imgSrc}" style="width: 100%; height: 100%; object-fit: cover;">
-            <button type="button" class="remove-product-img-btn" data-index="${idx}" style="position: absolute; top: 2px; right: 2px; background: rgba(239, 68, 68, 0.85); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
-        `;
-        div.querySelector('.remove-product-img-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            const index = parseInt(e.currentTarget.getAttribute('data-index'));
-            uploadedProductImages.splice(index, 1);
-            renderProductPreviews();
-        });
-        container.appendChild(div);
-    });
-    document.getElementById('product-images-json').value = JSON.stringify(uploadedProductImages);
-}
-
-const modal = document.getElementById('product-modal');
-document.getElementById('add-product-btn').addEventListener('click', () => openModal());
-document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.remove('active'));
-document.getElementById('close-lead-modal-btn')?.addEventListener('click', () => {
-    document.getElementById('lead-modal').classList.remove('active');
-});
-
-function openModal(id = null) {
-    const form = document.getElementById('product-form');
-    form.reset();
-    document.getElementById('product-id').value = '';
-    document.getElementById('modal-title').innerText = 'Add Product';
-    document.getElementById('product-images-json').value = '[]';
-    document.getElementById('product-image-file').value = '';
-    document.getElementById('product-images-preview-container').innerHTML = '';
-    uploadedProductImages = [];
-    document.getElementById('product-price').value = '';
-    document.getElementById('product-discounted-price').value = '';
-    document.getElementById('product-capacity').value = '';
-    document.getElementById('product-subsidy').value = '';
-    document.getElementById('specs-input-container').innerHTML = '';
-    if (id) {
-        const p = productsList.find(x => x.id === id);
-        if (p) {
-            document.getElementById('modal-title').innerText = 'Edit Product';
-            document.getElementById('product-id').value = p.id;
-            document.getElementById('product-name').value = p.name;
-            document.getElementById('product-category').value = p.category;
-            document.getElementById('product-description').value = p.description;
-            
-            const images = p.images || (p.imageURL ? [p.imageURL] : []);
-            uploadedProductImages = [...images];
-            renderProductPreviews();
-            
-            document.getElementById('product-active').checked = p.isActive;
-            document.getElementById('product-price').value = p.price || '';
-            document.getElementById('product-discounted-price').value = p.discountedPrice || '';
-            document.getElementById('product-capacity').value = p.capacity || '';
-            document.getElementById('product-subsidy').value = p.subsidy || '';
-            const specs = p.specifications || [];
-            specs.forEach(spec => addSpecRow(spec.key, spec.value));
-        }
+async function openProductModal(id = null) {
+  const form = $('product-form');
+  form.reset();
+  $('product-id').value = id || '';
+  $('modal-title').textContent = id ? 'Edit product' : 'Add product';
+  $('specs-input-container').innerHTML = '';
+  productImages = [];
+  productMediaBefore = [];
+  const p = id && state.products.find((x) => x.id === id);
+  if (p) {
+    $('product-name').value = p.name || '';
+    $('product-category').value = p.category || 'Solar Panel';
+    $('product-description').value = p.description || '';
+    $('product-price').value = p.price ?? '';
+    $('product-discounted-price').value = p.discountedPrice ?? '';
+    $('product-capacity').value = p.capacity ?? '';
+    // Older products stored central + state together; the central part is capped.
+    $('product-subsidy').value = p.subsidy ? Math.min(Number(p.subsidy), CENTRAL_SUBSIDY_MAX) : '';
+    $('product-state-subsidy').value = p.stateSubsidy ?? '';
+    $('product-active').checked = p.isActive !== false;
+    (p.specifications || []).forEach((s) => addSpecRow(s.key, s.value));
+    if (Array.isArray(p.media)) {
+      productMediaBefore = [...p.media];
+      productImages = p.media.map((mediaId) => ({ id: mediaId, src: '' }));
+      productImages.forEach((img) => loadMedia(img.id).then((src) => {
+        img.src = src;
+        renderProductImages();
+      }));
+    } else {
+      // Old-format photos are converted when the product is saved.
+      productImages = legacyImagesOf(p).map((src) => ({ src, source: src }));
     }
-    modal.classList.add('active');
+  }
+  renderProductImages();
+  $('product-modal').classList.add('active');
 }
-document.getElementById('product-image-file').addEventListener('change', function(e) {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-    let filesProcessed = 0;
-    files.forEach(file => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = function(event) {
-            const img = new Image();
-            img.src = event.target.result;
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 1000;
-                const MAX_HEIGHT = 1000;
-                let width = img.width;
-                let height = img.height;
-                if (width > height) {
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-                } else {
-                    if (height > MAX_HEIGHT) {
-                        width *= MAX_HEIGHT / height;
-                        height = MAX_HEIGHT;
-                    }
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                uploadedProductImages.push(dataUrl);
-                filesProcessed++;
-                if (filesProcessed === files.length) {
-                    renderProductPreviews();
-                    document.getElementById('product-image-file').value = '';
-                }
-            }
-        }
-    });
-});
-document.getElementById('product-form').addEventListener('submit', async (e) => {
- e.preventDefault();
- const btn = document.getElementById('save-product-btn');
- btn.disabled = true;
- btn.innerText = 'Saving...';
- const id = document.getElementById('product-id').value;
- const priceVal = document.getElementById('product-price').value;
- const discountedPriceVal = document.getElementById('product-discounted-price').value;
- const capacityVal = document.getElementById('product-capacity').value;
- const subsidyVal = document.getElementById('product-subsidy').value;
- const specRows = document.querySelectorAll('.spec-row');
- const specifications = [];
- specRows.forEach(row => {
- const key = row.querySelector('.spec-key').value.trim();
- const value = row.querySelector('.spec-value').value.trim();
- if (key && value) {
- specifications.push({ key, value });
- }
- });
- const data = {
- name: document.getElementById('product-name').value,
- category: document.getElementById('product-category').value,
- description: document.getElementById('product-description').value,
- price: priceVal ? parseFloat(priceVal) : null,
- discountedPrice: discountedPriceVal ? parseFloat(discountedPriceVal) : null,
- capacity: capacityVal ? parseFloat(capacityVal) : null,
- subsidy: subsidyVal ? parseFloat(subsidyVal) : null,
- imageURL: uploadedProductImages[0] || '',
- images: uploadedProductImages,
- isActive: document.getElementById('product-active').checked,
- specifications: specifications
- };
- try {
- if (id) {
- await updateDoc(doc(db, "products", id), data);
- } else {
- data.createdAt = serverTimestamp();
- await addDoc(collection(db, "products"), data);
- }
- modal.classList.remove('active');
- await loadProducts();
- updateStats();
- } catch(err) {
- console.error(err);
- alert('Error saving product');
- } finally {
- btn.disabled = false;
- btn.innerText = 'Save Product';
- }
-});
-async function deleteProduct(id) {
- if (confirm('Are you sure you want to delete this product?')) {
- try {
- await deleteDoc(doc(db, "products", id));
- await loadProducts();
- updateStats();
- } catch(err) {
- console.error(err);
- alert('Error deleting product');
- }
- }
-}
-async function loadReviews() {
- const tbody = document.getElementById('reviews-table-body');
- tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
- try {
- const q = query(collection(db, "reviews"));
- const snapshot = await getDocs(q);
- let count = 0;
- tbody.innerHTML = '';
- snapshot.forEach(d => {
- count++;
- const r = { id: d.id, ...d.data() };
- const comment = r.comment || '';
- const imgHtml = r.image ? `<br><img src="${r.image}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; margin-top: 5px;">` : '';
- const tr = document.createElement('tr');
- tr.innerHTML = `
- <td data-label="Reviewer">
- <div class="table-cell-details">
- <strong>${r.name || 'Anonymous'}</strong>
- ${imgHtml}
- </div>
- </td>
- <td data-label="Rating">${r.rating || 5}/5</td>
- <td data-label="Comment">${comment.substring(0,30)}${comment.length > 30 ? '...' : ''}</td>
- <td data-label="Status"><span class="badge ${r.status === 'approved' ? 'badge-success' : 'badge-warning'}">${r.status || 'pending'}</span></td>
- <td data-label="Actions">
- ${r.status === 'pending' ? `<button class="btn btn-primary" onclick="window.updateReview('${r.id}', 'approved')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Approve</button>` : ''}
- <button class="btn btn-danger" onclick="window.deleteReview('${r.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
- </td>
- `;
- tbody.appendChild(tr);
- });
- document.getElementById('stat-reviews').innerText = count;
- } catch(err) {
- console.error(err);
- tbody.innerHTML = '<tr><td colspan="5" style="color:red;">Error loading reviews</td></tr>';
- }
-}
-window.updateReview = async (id, status) => {
- try {
- await updateDoc(doc(db, "reviews", id), { status });
- loadReviews();
- } catch(err) {
- console.error(err);
- }
-};
-window.deleteReview = async (id) => {
- if (confirm('Delete review?')) {
- try {
- await deleteDoc(doc(db, "reviews", id));
- loadReviews();
- } catch(err) {
- console.error(err);
- }
- }
-};
-const reviewModal = document.getElementById('review-modal');
-document.getElementById('add-review-btn').addEventListener('click', () => {
- document.getElementById('review-form').reset();
- document.getElementById('review-image').value = '';
- document.getElementById('review-image-file').value = '';
- document.getElementById('review-image-preview-container').style.display = 'none';
- document.getElementById('review-image-preview').src = '';
- reviewModal.classList.add('active');
-});
-document.getElementById('close-review-modal-btn').addEventListener('click', () => reviewModal.classList.remove('active'));
-document.getElementById('review-image-file').addEventListener('change', function(e) {
- const file = e.target.files[0];
- if (!file) return;
- const reader = new FileReader();
- reader.readAsDataURL(file);
- reader.onload = function(event) {
- const img = new Image();
- img.src = event.target.result;
- img.onload = function() {
- const canvas = document.createElement('canvas');
- const MAX_WIDTH = 500; 
- const MAX_HEIGHT = 500;
- let width = img.width;
- let height = img.height;
- if (width > height) {
- if (width > MAX_WIDTH) {
- height *= MAX_WIDTH / width;
- width = MAX_WIDTH;
- }
- } else {
- if (height > MAX_HEIGHT) {
- width *= MAX_HEIGHT / height;
- height = MAX_HEIGHT;
- }
- }
- canvas.width = width;
- canvas.height = height;
- const ctx = canvas.getContext('2d');
- ctx.drawImage(img, 0, 0, width, height);
- const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
- document.getElementById('review-image').value = dataUrl;
- document.getElementById('review-image-preview-container').style.display = 'block';
- document.getElementById('review-image-preview').src = dataUrl;
- }
- }
-});
-document.getElementById('review-form').addEventListener('submit', async (e) => {
- e.preventDefault();
- const btn = document.getElementById('save-review-btn');
- btn.disabled = true;
- btn.innerText = 'Saving...';
- const data = {
- name: document.getElementById('review-name').value,
- rating: parseInt(document.getElementById('review-rating').value),
- comment: document.getElementById('review-comment').value,
- image: document.getElementById('review-image').value || null,
- status: 'approved', 
- createdAt: serverTimestamp()
- };
- try {
- await addDoc(collection(db, "reviews"), data);
- reviewModal.classList.remove('active');
- await loadReviews();
- } catch(err) {
- console.error(err);
- alert('Error saving review');
- } finally {
- btn.disabled = false;
- btn.innerText = 'Save Review';
- }
-});
-async function loadLeads() {
- const tbody = document.getElementById('leads-table-body');
- tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
- try {
- const q = query(collection(db, "leads"), orderBy("createdAt", "desc"));
- const snapshot = await getDocs(q);
- let count = 0;
- tbody.innerHTML = '';
- leadsList = [];
- snapshot.forEach(d => {
- count++;
- const l = { id: d.id, ...d.data() };
- leadsList.push(l);
- const dateStr = l.createdAt ? new Date(l.createdAt.toDate()).toLocaleDateString() : 'N/A';
- const message = l.message || '';
- const tr = document.createElement('tr');
- tr.innerHTML = `
- <td data-label="Date">${dateStr}</td>
- <td data-label="Name">${l.name || 'Unknown'}</td>
- <td data-label="Phone">${l.phone || 'N/A'}</td>
- <td data-label="Message">${message.substring(0,30)}${message.length > 30 ? '...' : ''}</td>
- <td data-label="Status"><span class="badge ${l.status === 'contacted' ? 'badge-success' : 'badge-warning'}">${l.status || 'new'}</span></td>
- <td data-label="Actions">
- <button class="btn btn-primary btn-view-lead" data-id="${l.id}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 5px;">View</button>
- ${l.status === 'new' ? `<button class="btn btn-success btn-contact-lead" data-id="${l.id}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Mark Contacted</button>` : ''}
- </td>
- `;
- tbody.appendChild(tr);
- });
- document.querySelectorAll('.btn-view-lead').forEach(btn => {
- btn.addEventListener('click', (e) => {
- const id = e.currentTarget.getAttribute('data-id');
- window.openLeadModal(id);
- });
- });
- document.querySelectorAll('.btn-contact-lead').forEach(btn => {
- btn.addEventListener('click', (e) => {
- const id = e.currentTarget.getAttribute('data-id');
- window.updateLead(id, 'contacted');
- });
- });
- document.getElementById('stat-leads').innerText = count;
- } catch(err) {
- console.error(err);
- tbody.innerHTML = '<tr><td colspan="6" style="color:red;">Error loading leads</td></tr>';
- }
-}
-window.openLeadModal = (id) => {
- const lead = leadsList.find(item => item.id === id);
- if (!lead) return;
- const dateStr = lead.createdAt ? new Date(lead.createdAt.toDate()).toLocaleString() : 'N/A';
- document.getElementById('view-lead-name').innerText = lead.name || 'Unknown';
- document.getElementById('view-lead-phone').innerText = lead.phone || 'N/A';
- document.getElementById('view-lead-date').innerText = dateStr;
- const statusSpan = document.getElementById('view-lead-status');
- statusSpan.className = `badge ${lead.status === 'contacted' ? 'badge-success' : 'badge-warning'}`;
- statusSpan.innerText = lead.status === 'contacted' ? 'Contacted' : 'New';
- document.getElementById('view-lead-message').innerText = lead.message || 'No message provided.';
- const callBtn = document.getElementById('lead-call-btn');
- if (lead.phone) {
- callBtn.href = `tel:${lead.phone}`;
- callBtn.style.display = 'flex';
- } else {
- callBtn.style.display = 'none';
- }
- const whatsappBtn = document.getElementById('lead-whatsapp-btn');
- if (lead.phone) {
- const cleanPhone = lead.phone.replace(/[^0-9]/g, '');
- const text = encodeURIComponent(`Hello ${lead.name || ''}, this is Shree Krishna Enterprises solar advisor. We received your solar enquiry. How can we help you?`);
- whatsappBtn.href = `https://wa.me/${cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone}?text=${text}`;
- whatsappBtn.style.display = 'flex';
- } else {
- whatsappBtn.style.display = 'none';
- }
- const actionBtn = document.getElementById('lead-action-btn');
- if (lead.status === 'new') {
- actionBtn.style.display = 'inline-block';
- actionBtn.onclick = async () => {
- await window.updateLead(id, 'contacted');
- document.getElementById('lead-modal').classList.remove('active');
- };
- } else {
- actionBtn.style.display = 'none';
- }
- document.getElementById('lead-modal').classList.add('active');
-};
-window.updateLead = async (id, status) => {
- try {
- await updateDoc(doc(db, "leads", id), { status });
- loadLeads();
- } catch(err) {
- console.error(err);
- }
-};
-async function loadSlides() {
- const tbody = document.getElementById('slides-table-body');
- if (!tbody) return;
- tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
- try {
- const q = query(collection(db, "hero_slides"), orderBy("createdAt", "desc"));
- const snapshot = await getDocs(q);
- slidesList = [];
- tbody.innerHTML = '';
- snapshot.forEach(d => {
- const slide = { id: d.id, ...d.data() };
- slidesList.push(slide);
- const tr = document.createElement('tr');
- tr.innerHTML = `
- <td data-label="Image"><img src="${slide.imageURL}" alt="slide" style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
- <td data-label="Title">${slide.title || '<span style="color:var(--text-muted); font-style:italic;">Default Waaree Solar</span>'}</td>
- <td data-label="Status"><span class="badge ${slide.isActive ? 'badge-success' : 'badge-warning'}">${slide.isActive ? 'Active' : 'Inactive'}</span></td>
- <td data-label="Actions">
- <button class="btn btn-primary btn-edit-slide" data-id="${slide.id}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Edit</button>
- <button class="btn btn-danger btn-delete-slide" data-id="${slide.id}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
- </td>
- `;
- tbody.appendChild(tr);
- });
- document.querySelectorAll('.btn-edit-slide').forEach(btn => {
- btn.addEventListener('click', (e) => openSlideModal(e.target.getAttribute('data-id')));
- });
- document.querySelectorAll('.btn-delete-slide').forEach(btn => {
- btn.addEventListener('click', (e) => deleteSlide(e.target.getAttribute('data-id')));
- });
- } catch(err) {
- console.error(err);
- tbody.innerHTML = '<tr><td colspan="4" style="color:red;">Error loading slides</td></tr>';
- }
-}
-const slideModal = document.getElementById('slide-modal');
-if (document.getElementById('add-slide-btn')) {
- document.getElementById('add-slide-btn').addEventListener('click', () => openSlideModal());
-}
-if (document.getElementById('close-slide-modal-btn')) {
- document.getElementById('close-slide-modal-btn').addEventListener('click', () => slideModal.classList.remove('active'));
-}
-function openSlideModal(id = null) {
- const form = document.getElementById('slide-form');
- form.reset();
- document.getElementById('slide-id').value = '';
- document.getElementById('slide-modal-title').innerText = 'Add Hero Slide';
- document.getElementById('slide-image').value = '';
- document.getElementById('slide-image-file').value = '';
- document.getElementById('slide-image-preview-container').style.display = 'none';
- document.getElementById('slide-image-preview').src = '';
- if (id) {
- const s = slidesList.find(x => x.id === id);
- if (s) {
- document.getElementById('slide-modal-title').innerText = 'Edit Hero Slide';
- document.getElementById('slide-id').value = s.id;
- document.getElementById('slide-title').value = s.title || '';
- document.getElementById('slide-image').value = s.imageURL || '';
- document.getElementById('slide-active').checked = s.isActive;
- if (s.imageURL) {
- document.getElementById('slide-image-preview-container').style.display = 'block';
- document.getElementById('slide-image-preview').src = s.imageURL;
- }
- }
- }
- slideModal.classList.add('active');
-}
-if (document.getElementById('slide-image-file')) {
- document.getElementById('slide-image-file').addEventListener('change', function(e) {
- const file = e.target.files[0];
- if (!file) return;
- const reader = new FileReader();
- reader.readAsDataURL(file);
- reader.onload = function(event) {
- const img = new Image();
- img.src = event.target.result;
- img.onload = function() {
- const canvas = document.createElement('canvas');
- const MAX_WIDTH = 1920;
- const MAX_HEIGHT = 1080;
- let width = img.width;
- let height = img.height;
- if (width > height) {
- if (width > MAX_WIDTH) {
- height *= MAX_WIDTH / width;
- width = MAX_WIDTH;
- }
- } else {
- if (height > MAX_HEIGHT) {
- width *= MAX_HEIGHT / height;
- height = MAX_HEIGHT;
- }
- }
- canvas.width = width;
- canvas.height = height;
- const ctx = canvas.getContext('2d');
- ctx.drawImage(img, 0, 0, width, height);
- const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
- document.getElementById('slide-image').value = dataUrl;
- document.getElementById('slide-image-preview-container').style.display = 'block';
- document.getElementById('slide-image-preview').src = dataUrl;
- }
- }
- });
-}
-if (document.getElementById('slide-form')) {
- document.getElementById('slide-form').addEventListener('submit', async (e) => {
- e.preventDefault();
- const btn = document.getElementById('save-slide-btn');
- btn.disabled = true;
- btn.innerText = 'Saving...';
- const id = document.getElementById('slide-id').value;
- const data = {
- title: document.getElementById('slide-title').value || '',
- imageURL: document.getElementById('slide-image').value,
- isActive: document.getElementById('slide-active').checked
- };
- try {
- if (id) {
- await updateDoc(doc(db, "hero_slides", id), data);
- } else {
- data.createdAt = serverTimestamp();
- await addDoc(collection(db, "hero_slides"), data);
- }
- slideModal.classList.remove('active');
- await loadSlides();
- updateStats();
- } catch(err) {
- console.error(err);
- alert('Error saving hero slide');
- } finally {
- btn.disabled = false;
- btn.innerText = 'Save Slide';
- }
- });
-}
-async function deleteSlide(id) {
- if (confirm('Are you sure you want to delete this hero slide?')) {
- try {
- await deleteDoc(doc(db, "hero_slides", id));
- await loadSlides();
- updateStats();
- } catch(err) {
- console.error(err);
- alert('Error deleting hero slide');
- }
- }
-}
-function updateStats() {
- document.getElementById('stat-products').innerText = productsList.length;
- document.getElementById('stat-slides').innerText = slidesList.length;
- const statGallery = document.getElementById('stat-gallery');
- if (statGallery) statGallery.innerText = galleryList.length;
-}
-async function loadGallery() {
- const tbody = document.getElementById('gallery-table-body');
- if (!tbody) return;
- tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
- try {
- const q = query(collection(db, "gallery"), orderBy("createdAt", "desc"));
- const snapshot = await getDocs(q);
- galleryList = [];
- tbody.innerHTML = '';
- snapshot.forEach(d => {
- const item = { id: d.id, ...d.data() };
- galleryList.push(item);
- const tr = document.createElement('tr');
- tr.innerHTML = `
- <td data-label="Image"><img src="${item.imageURL}" alt="gallery" style="width: 70px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
- <td data-label="Caption">${item.caption || '<span style="color:var(--text-muted); font-style:italic;">No caption</span>'}</td>
- <td data-label="Category">${item.category}</td>
- <td data-label="Status"><span class="badge ${item.isActive ? 'badge-success' : 'badge-warning'}">${item.isActive ? 'Active' : 'Inactive'}</span></td>
- <td data-label="Actions">
- <button class="btn btn-primary btn-edit-gallery" data-id="${item.id}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Edit</button>
- <button class="btn btn-danger btn-delete-gallery" data-id="${item.id}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
- </td>
- `;
- tbody.appendChild(tr);
- });
- document.querySelectorAll('.btn-edit-gallery').forEach(btn => {
- btn.addEventListener('click', (e) => openGalleryModal(e.target.getAttribute('data-id')));
- });
- document.querySelectorAll('.btn-delete-gallery').forEach(btn => {
- btn.addEventListener('click', (e) => deleteGalleryItem(e.target.getAttribute('data-id')));
- });
- } catch(err) {
- console.error(err);
- tbody.innerHTML = '<tr><td colspan="5" style="color:red;">Error loading gallery</td></tr>';
- }
-}
-const galleryModal = document.getElementById('gallery-modal');
-if (document.getElementById('add-gallery-btn')) {
- document.getElementById('add-gallery-btn').addEventListener('click', () => openGalleryModal());
-}
-if (document.getElementById('close-gallery-modal-btn')) {
- document.getElementById('close-gallery-modal-btn').addEventListener('click', () => galleryModal.classList.remove('active'));
-}
-let uploadedGalleryImages = [];
 
-function renderGalleryPreviews() {
-    const container = document.getElementById('gallery-images-preview-container');
-    if (!container) return;
-    container.innerHTML = '';
-    uploadedGalleryImages.forEach((imgSrc, idx) => {
-        const div = document.createElement('div');
-        div.style.position = 'relative';
-        div.style.width = '80px';
-        div.style.height = '80px';
-        div.style.borderRadius = '8px';
-        div.style.overflow = 'hidden';
-        div.style.border = '1px solid var(--border-color)';
-        div.innerHTML = `
-            <img src="${imgSrc}" style="width: 100%; height: 100%; object-fit: cover;">
-            <button type="button" class="remove-gallery-img-btn" data-index="${idx}" style="position: absolute; top: 2px; right: 2px; background: rgba(239, 68, 68, 0.85); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
-        `;
-        div.querySelector('.remove-gallery-img-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            const index = parseInt(e.currentTarget.getAttribute('data-index'));
-            uploadedGalleryImages.splice(index, 1);
-            renderGalleryPreviews();
-        });
-        container.appendChild(div);
+$('add-product-btn').addEventListener('click', () => openProductModal());
+actions['edit-product'] = (id) => openProductModal(id);
+
+$('product-image-file').addEventListener('change', (e) => {
+  for (const file of e.target.files) productImages.push({ src: URL.createObjectURL(file), source: file });
+  e.target.value = '';
+  renderProductImages();
+});
+
+function numberOrNull(id) {
+  const value = $(id).value.trim();
+  return value === '' ? null : Number(value);
+}
+
+$('product-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const saveBtn = $('save-product-btn');
+  const id = $('product-id').value;
+  if (productImages.some((img) => img.id && !img.src)) {
+    alert('Photos are still loading. Try again in a moment.');
+    return;
+  }
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+  try {
+    const batch = writeBatch(db);
+    const media = [];
+    for (const img of productImages) {
+      media.push(img.id || await addMediaToBatch(batch, img.source, SIZES.product.full));
+    }
+    const first = productImages[0];
+    const data = {
+      name: $('product-name').value.trim(),
+      category: $('product-category').value,
+      description: $('product-description').value.trim(),
+      price: numberOrNull('product-price'),
+      discountedPrice: numberOrNull('product-discounted-price'),
+      capacity: numberOrNull('product-capacity'),
+      subsidy: numberOrNull('product-subsidy'),
+      stateSubsidy: numberOrNull('product-state-subsidy'),
+      isActive: $('product-active').checked,
+      specifications: [...document.querySelectorAll('.spec-row')]
+        .map((row) => ({ key: row.querySelector('.spec-key').value.trim(), value: row.querySelector('.spec-value').value.trim() }))
+        .filter((s) => s.key && s.value),
+      media,
+      cover: first ? await makeThumb(first.source || first.src, SIZES.product.thumb) : '',
+      updatedAt: serverTimestamp(),
+    };
+    if (id) {
+      batch.update(doc(db, 'products', id), { ...data, imageURL: deleteField(), images: deleteField() });
+      productMediaBefore.filter((m) => !media.includes(m)).forEach((m) => batch.delete(doc(db, 'media', m)));
+    } else {
+      batch.set(doc(collection(db, 'products')), { ...data, createdAt: serverTimestamp() });
+    }
+    await batch.commit();
+    $('product-modal').classList.remove('active');
+    await loadProducts();
+    updateToolsStatus();
+  } catch (err) {
+    console.error(err);
+    alert(`Product not saved: ${err.message}`);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save product';
+  }
+});
+
+async function deleteWithMedia(collectionName, record) {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, collectionName, record.id));
+  (Array.isArray(record.media) ? record.media : []).forEach((m) => batch.delete(doc(db, 'media', m)));
+  await batch.commit();
+}
+
+actions['delete-product'] = async (id) => {
+  const p = state.products.find((x) => x.id === id);
+  if (!p || !confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+  try {
+    await deleteWithMedia('products', p);
+    await loadProducts();
+  } catch (err) {
+    console.error(err);
+    alert('Product not deleted.');
+  }
+};
+
+// ---------- Reviews ----------
+
+const loadReviews = () => loadList('reviews', 'reviews', 'reviews-table-body', 5, reviewRow, 'No reviews yet.', 'stat-reviews');
+
+function reviewRow(r) {
+  const comment = r.comment || '';
+  const shown = r.status === 'approved';
+  const photo = coverOf(r);
+  return `
+    <tr>
+      <td data-label="Reviewer"><div class="table-cell-details"><strong>${esc(r.name || 'Anonymous')}</strong>
+        ${r.verified ? '<div class="muted" style="font-style: normal;">Verified buyer</div>' : ''}
+        ${photo ? `<img class="thumb" src="${photo}" alt="" style="margin-top: 5px;">` : ''}</div></td>
+      <td data-label="Rating">${esc(r.rating || 5)}/5</td>
+      <td data-label="Comment">${esc(comment.length > 40 ? `${comment.slice(0, 40)}…` : comment)}</td>
+      <td data-label="Status">${statusBadge(shown, 'Shown', 'Hidden')}</td>
+      ${actionButtons(
+        button('toggle-review', r.id, shown ? 'Hide' : 'Show', 'btn-outline'),
+        button('delete-review', r.id, 'Delete', 'btn-danger'),
+      )}
+    </tr>`;
+}
+
+actions['toggle-review'] = async (id) => {
+  const r = state.reviews.find((x) => x.id === id);
+  if (!r) return;
+  try {
+    await updateDoc(doc(db, 'reviews', id), { status: r.status === 'approved' ? 'hidden' : 'approved' });
+    await loadReviews();
+  } catch (err) {
+    console.error(err);
+    alert('Review not updated.');
+  }
+};
+
+actions['delete-review'] = async (id) => {
+  if (!confirm('Delete this review? This cannot be undone.')) return;
+  try {
+    await deleteDoc(doc(db, 'reviews', id));
+    await loadReviews();
+  } catch (err) {
+    console.error(err);
+    alert('Review not deleted.');
+  }
+};
+
+let reviewPhoto = null;
+
+$('add-review-btn').addEventListener('click', () => {
+  $('review-form').reset();
+  reviewPhoto = null;
+  $('review-image-preview-container').hidden = true;
+  $('review-modal').classList.add('active');
+});
+
+$('review-image-file').addEventListener('change', (e) => {
+  reviewPhoto = e.target.files[0] || null;
+  $('review-image-preview-container').hidden = !reviewPhoto;
+  if (reviewPhoto) $('review-image-preview').src = URL.createObjectURL(reviewPhoto);
+});
+
+$('review-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const saveBtn = $('save-review-btn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+  try {
+    await addDoc(collection(db, 'reviews'), {
+      name: $('review-name').value.trim(),
+      rating: Number($('review-rating').value),
+      comment: $('review-comment').value.trim(),
+      verified: $('review-verified').checked,
+      image: reviewPhoto ? await makeThumb(reviewPhoto, SIZES.review.thumb) : null,
+      status: 'approved',
+      createdAt: serverTimestamp(),
     });
-    document.getElementById('gallery-images-json').value = JSON.stringify(uploadedGalleryImages);
+    $('review-modal').classList.remove('active');
+    await loadReviews();
+  } catch (err) {
+    console.error(err);
+    alert(`Review not saved: ${err.message}`);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save review';
+  }
+});
+
+// ---------- Leads ----------
+
+const loadLeads = () => loadList('leads', 'leads', 'leads-table-body', 6, leadRow, 'No enquiries yet.', 'stat-leads');
+
+function leadRow(l) {
+  const message = l.message || '';
+  return `
+    <tr>
+      <td data-label="Date">${esc(formatDate(l.createdAt))}</td>
+      <td data-label="Name">${esc(l.name || 'Unknown')}</td>
+      <td data-label="Phone">${esc(l.phone || '—')}</td>
+      <td data-label="Message">${esc(message.length > 30 ? `${message.slice(0, 30)}…` : message)}</td>
+      <td data-label="Status">${statusBadge(l.status === 'contacted', 'Contacted', 'New')}</td>
+      ${actionButtons(
+        button('view-lead', l.id, 'View'),
+        l.status !== 'contacted' ? button('contact-lead', l.id, 'Mark contacted', 'btn-success') : '',
+        button('delete-lead', l.id, 'Delete', 'btn-danger'),
+      )}
+    </tr>`;
+}
+
+actions['view-lead'] = (id) => {
+  const lead = state.leads.find((x) => x.id === id);
+  if (!lead) return;
+  $('view-lead-name').textContent = lead.name || 'Unknown';
+  $('view-lead-phone').textContent = lead.phone || '—';
+  $('view-lead-date').textContent = formatDate(lead.createdAt, true);
+  $('view-lead-source').textContent = lead.source || 'Website form';
+  const status = $('view-lead-status');
+  status.className = `badge ${lead.status === 'contacted' ? 'badge-success' : 'badge-warning'}`;
+  status.textContent = lead.status === 'contacted' ? 'Contacted' : 'New';
+  $('view-lead-message').textContent = lead.message || 'No message.';
+
+  const digits = phoneDigits(lead.phone);
+  $('lead-call-btn').hidden = !digits;
+  $('lead-whatsapp-btn').hidden = !digits;
+  if (digits) {
+    $('lead-call-btn').href = `tel:+${digits}`;
+    const text = `नमस्ते ${lead.name || ''} जी, श्री कृष्णा एंटरप्राइजेज से। हमें आपकी सोलर की पूछताछ मिली है। बताइए, हम आपकी क्या मदद कर सकते हैं?`;
+    $('lead-whatsapp-btn').href = `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+  }
+  $('lead-action-btn').hidden = lead.status === 'contacted';
+  $('lead-action-btn').dataset.id = id;
+  $('lead-modal').classList.add('active');
+};
+
+actions['contact-lead'] = async (id) => {
+  try {
+    await updateDoc(doc(db, 'leads', id), { status: 'contacted' });
+    $('lead-modal').classList.remove('active');
+    await loadLeads();
+  } catch (err) {
+    console.error(err);
+    alert('Lead not updated.');
+  }
+};
+
+actions['delete-lead'] = async (id) => {
+  if (!confirm('Delete this enquiry permanently?')) return;
+  try {
+    await deleteDoc(doc(db, 'leads', id));
+    await loadLeads();
+  } catch (err) {
+    console.error(err);
+    alert('Lead not deleted.');
+  }
+};
+
+// ---------- Hero slides ----------
+
+const loadSlides = () => loadList('slides', 'hero_slides', 'slides-table-body', 4, slideRow, 'No slides: the website shows its built-in photo.', 'stat-slides');
+
+function slideRow(s) {
+  return `
+    <tr>
+      ${thumbCell(s)}
+      <td data-label="Title">${s.title ? esc(s.title) : '<span class="muted">No title</span>'}</td>
+      <td data-label="Status">${statusBadge(s.isActive)}</td>
+      ${actionButtons(button('edit-slide', s.id, 'Edit'), button('delete-slide', s.id, 'Delete', 'btn-danger'))}
+    </tr>`;
+}
+
+let slidePhoto = null;
+
+function openSlideModal(id = null) {
+  $('slide-form').reset();
+  $('slide-id').value = id || '';
+  $('slide-modal-title').textContent = id ? 'Edit hero slide' : 'Add hero slide';
+  slidePhoto = null;
+  const s = id && state.slides.find((x) => x.id === id);
+  $('slide-active').checked = s ? s.isActive !== false : true;
+  $('slide-title').value = s?.title || '';
+  const preview = s ? coverOf(s) : '';
+  $('slide-image-preview-container').hidden = !preview;
+  $('slide-image-preview').src = preview;
+  $('slide-modal').classList.add('active');
+}
+
+$('add-slide-btn').addEventListener('click', () => openSlideModal());
+actions['edit-slide'] = (id) => openSlideModal(id);
+
+$('slide-image-file').addEventListener('change', (e) => {
+  slidePhoto = e.target.files[0] || null;
+  if (slidePhoto) {
+    $('slide-image-preview').src = URL.createObjectURL(slidePhoto);
+    $('slide-image-preview-container').hidden = false;
+  }
+});
+
+// Saves a one-photo record (hero slide or gallery item) with its media document.
+async function saveSinglePhotoRecord(collectionName, existing, fields, photo, size) {
+  const batch = writeBatch(db);
+  const ref = existing ? doc(db, collectionName, existing.id) : doc(collection(db, collectionName));
+  const data = { ...fields, updatedAt: serverTimestamp() };
+  const legacy = existing ? legacyImagesOf(existing)[0] : null;
+  const source = photo || legacy;
+  if (source) {
+    data.media = [await addMediaToBatch(batch, source, size)];
+    data.cover = await makeThumb(source);
+    (Array.isArray(existing?.media) ? existing.media : []).forEach((m) => batch.delete(doc(db, 'media', m)));
+  }
+  if (existing) {
+    batch.update(ref, legacy ? { ...data, imageURL: deleteField() } : data);
+  } else {
+    batch.set(ref, { ...data, createdAt: serverTimestamp() });
+  }
+  await batch.commit();
+}
+
+$('slide-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = $('slide-id').value;
+  const existing = id ? state.slides.find((x) => x.id === id) : null;
+  if (!existing && !slidePhoto) {
+    alert('Choose a photo for the slide.');
+    return;
+  }
+  const saveBtn = $('save-slide-btn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+  try {
+    await saveSinglePhotoRecord('hero_slides', existing, {
+      title: $('slide-title').value.trim(),
+      isActive: $('slide-active').checked,
+    }, slidePhoto, SIZES.hero.full);
+    $('slide-modal').classList.remove('active');
+    await loadSlides();
+    updateToolsStatus();
+  } catch (err) {
+    console.error(err);
+    alert(`Slide not saved: ${err.message}`);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save slide';
+  }
+});
+
+actions['delete-slide'] = async (id) => {
+  const s = state.slides.find((x) => x.id === id);
+  if (!s || !confirm('Delete this slide?')) return;
+  try {
+    await deleteWithMedia('hero_slides', s);
+    await loadSlides();
+  } catch (err) {
+    console.error(err);
+    alert('Slide not deleted.');
+  }
+};
+
+// ---------- Gallery ----------
+
+const loadGallery = () => loadList('gallery', 'gallery', 'gallery-table-body', 5, galleryRow, 'No gallery photos yet.', 'stat-gallery');
+
+function galleryRow(g) {
+  return `
+    <tr>
+      ${thumbCell(g)}
+      <td data-label="Caption">${g.caption ? esc(g.caption) : '<span class="muted">No caption</span>'}</td>
+      <td data-label="Category">${esc(g.category)}</td>
+      <td data-label="Status">${statusBadge(g.isActive)}</td>
+      ${actionButtons(button('edit-gallery', g.id, 'Edit'), button('delete-gallery', g.id, 'Delete', 'btn-danger'))}
+    </tr>`;
+}
+
+let galleryPhotos = [];
+
+function renderGalleryPhotos() {
+  renderImagePreviews('gallery-images-preview-container', galleryPhotos, (i) => {
+    galleryPhotos.splice(i, 1);
+    renderGalleryPhotos();
+  });
 }
 
 function openGalleryModal(id = null) {
-  const form = document.getElementById('gallery-form');
-  form.reset();
-  document.getElementById('gallery-id').value = '';
-  document.getElementById('gallery-modal-title').innerText = 'Add Gallery Item';
-  document.getElementById('gallery-images-json').value = '[]';
-  document.getElementById('gallery-image-file').value = '';
-  document.getElementById('gallery-images-preview-container').innerHTML = '';
-  uploadedGalleryImages = [];
-  if (id) {
-    const item = galleryList.find(x => x.id === id);
-    if (item) {
-      document.getElementById('gallery-modal-title').innerText = 'Edit Gallery Item';
-      document.getElementById('gallery-id').value = item.id;
-      document.getElementById('gallery-caption').value = item.caption || '';
-      document.getElementById('gallery-category').value = item.category || 'Residential Solar';
-      document.getElementById('gallery-active').checked = item.isActive;
-      if (item.imageURL) {
-        uploadedGalleryImages = [item.imageURL];
-        renderGalleryPreviews();
+  $('gallery-form').reset();
+  $('gallery-id').value = id || '';
+  $('gallery-modal-title').textContent = id ? 'Edit gallery photo' : 'Add gallery photos';
+  $('gallery-image-file').multiple = !id;
+  $('gallery-image-hint').textContent = id
+    ? 'Choose a photo only if you want to replace the current one.'
+    : 'Select one or more photos. Each becomes its own gallery item with this caption and category.';
+  galleryPhotos = [];
+  const g = id && state.gallery.find((x) => x.id === id);
+  if (g) {
+    $('gallery-caption').value = g.caption || '';
+    $('gallery-category').value = g.category || 'Other';
+    $('gallery-active').checked = g.isActive !== false;
+    const preview = coverOf(g);
+    if (preview) galleryPhotos = [{ src: preview, existing: true }];
+  }
+  renderGalleryPhotos();
+  $('gallery-modal').classList.add('active');
+}
+
+$('add-gallery-btn').addEventListener('click', () => openGalleryModal());
+actions['edit-gallery'] = (id) => openGalleryModal(id);
+
+$('gallery-image-file').addEventListener('change', (e) => {
+  const editing = Boolean($('gallery-id').value);
+  const added = [...e.target.files].map((file) => ({ src: URL.createObjectURL(file), source: file }));
+  galleryPhotos = editing ? added.slice(0, 1) : [...galleryPhotos, ...added];
+  e.target.value = '';
+  renderGalleryPhotos();
+});
+
+$('gallery-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = $('gallery-id').value;
+  const existing = id ? state.gallery.find((x) => x.id === id) : null;
+  const newPhotos = galleryPhotos.filter((p) => p.source);
+  if (!existing && !newPhotos.length) {
+    alert('Choose at least one photo.');
+    return;
+  }
+  const fields = {
+    caption: $('gallery-caption').value.trim(),
+    category: $('gallery-category').value,
+    isActive: $('gallery-active').checked,
+  };
+  const saveBtn = $('save-gallery-btn');
+  saveBtn.disabled = true;
+  try {
+    if (existing) {
+      saveBtn.textContent = 'Saving…';
+      await saveSinglePhotoRecord('gallery', existing, fields, newPhotos[0]?.source || null, SIZES.gallery.full);
+    } else {
+      // One write per photo keeps each request small, even for big uploads.
+      for (let i = 0; i < newPhotos.length; i += 1) {
+        saveBtn.textContent = `Saving ${i + 1} of ${newPhotos.length}…`;
+        await saveSinglePhotoRecord('gallery', null, fields, newPhotos[i].source, SIZES.gallery.full);
       }
     }
+    $('gallery-modal').classList.remove('active');
+    await loadGallery();
+    updateToolsStatus();
+  } catch (err) {
+    console.error(err);
+    alert(`Gallery not saved: ${err.message}`);
+    await loadGallery();
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
   }
-  galleryModal.classList.add('active');
-}
+});
 
-if (document.getElementById('gallery-image-file')) {
-  document.getElementById('gallery-image-file').addEventListener('change', function(e) {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-    let filesProcessed = 0;
-    files.forEach(file => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = function(event) {
-            const img = new Image();
-            img.src = event.target.result;
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 1000;
-                const MAX_HEIGHT = 750;
-                let width = img.width;
-                let height = img.height;
-                if (width > height) {
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-                } else {
-                    if (height > MAX_HEIGHT) {
-                        width *= MAX_HEIGHT / height;
-                        height = MAX_HEIGHT;
-                    }
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                uploadedGalleryImages.push(dataUrl);
-                filesProcessed++;
-                if (filesProcessed === files.length) {
-                    renderGalleryPreviews();
-                    document.getElementById('gallery-image-file').value = '';
-                }
-            }
-        }
-    });
-  });
-}
+actions['delete-gallery'] = async (id) => {
+  const g = state.gallery.find((x) => x.id === id);
+  if (!g || !confirm('Delete this gallery photo?')) return;
+  try {
+    await deleteWithMedia('gallery', g);
+    await loadGallery();
+  } catch (err) {
+    console.error(err);
+    alert('Gallery photo not deleted.');
+  }
+};
 
-if (document.getElementById('gallery-form')) {
-  document.getElementById('gallery-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (uploadedGalleryImages.length === 0) {
-        alert('Please upload at least one image.');
-        return;
+// ---------- Backup and photo optimisation ----------
+
+const BACKUP_COLLECTIONS = ['products', 'hero_slides', 'gallery', 'reviews', 'leads', 'media'];
+
+$('backup-btn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  btn.textContent = 'Preparing backup…';
+  try {
+    const backup = { exportedAt: new Date().toISOString(), collections: {} };
+    for (const name of BACKUP_COLLECTIONS) {
+      const snap = await getDocs(collection(db, name));
+      backup.collections[name] = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()]));
     }
-    const btn = document.getElementById('save-gallery-btn');
-    btn.disabled = true;
-    btn.innerText = 'Saving...';
-    const id = document.getElementById('gallery-id').value;
-    const caption = document.getElementById('gallery-caption').value || '';
-    const category = document.getElementById('gallery-category').value;
-    const isActive = document.getElementById('gallery-active').checked;
-    
+    // `this[key]` is the raw value: Firestore timestamps would otherwise be
+    // serialised by their own toJSON() as { seconds, nanoseconds }.
+    const json = JSON.stringify(backup, function readableDates(key, value) {
+      const raw = this[key];
+      return raw?.toDate ? raw.toDate().toISOString() : value;
+    }, 2);
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    link.download = `ske-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+  } catch (err) {
+    console.error(err);
+    alert(`Backup failed: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Download backup';
+  }
+});
+
+function legacyRecords() {
+  const jobs = [];
+  state.products.filter((p) => !Array.isArray(p.media) && legacyImagesOf(p).length)
+    .forEach((p) => jobs.push({ collectionName: 'products', record: p, size: SIZES.product }));
+  state.slides.filter((s) => !Array.isArray(s.media) && legacyImagesOf(s).length)
+    .forEach((s) => jobs.push({ collectionName: 'hero_slides', record: s, size: SIZES.hero }));
+  state.gallery.filter((g) => !Array.isArray(g.media) && legacyImagesOf(g).length)
+    .forEach((g) => jobs.push({ collectionName: 'gallery', record: g, size: SIZES.gallery }));
+  state.reviews.filter((r) => isLegacyImage(r.image) && r.image.length > 120 * 1024)
+    .forEach((r) => jobs.push({ collectionName: 'reviews', record: r, size: SIZES.review }));
+  return jobs;
+}
+
+function updateToolsStatus() {
+  const pending = legacyRecords().length;
+  $('optimize-btn').disabled = pending === 0;
+  $('optimize-status').textContent = pending
+    ? `${pending} record(s) still store full-size photos inline. Optimising makes the website download far less.`
+    : 'All photos use the optimised format.';
+}
+
+async function optimiseRecord({ collectionName, record, size }) {
+  const ref = doc(db, collectionName, record.id);
+  if (collectionName === 'reviews') {
+    await updateDoc(ref, { image: await makeThumb(record.image, size.thumb) });
+    return;
+  }
+  const sources = legacyImagesOf(record);
+  const batch = writeBatch(db);
+  const media = [];
+  for (const source of sources) media.push(await addMediaToBatch(batch, source, size.full));
+  batch.update(ref, {
+    media,
+    cover: await makeThumb(sources[0], size.thumb),
+    imageURL: deleteField(),
+    images: deleteField(),
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
+$('optimize-btn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const jobs = legacyRecords();
+  if (!jobs.length) return;
+  if (!confirm(`Convert photos on ${jobs.length} record(s) to the optimised format?\n\nDownload a backup first if you have not already.`)) return;
+  btn.disabled = true;
+  const status = $('optimize-status');
+  let done = 0;
+  const failed = [];
+  for (const job of jobs) {
+    status.textContent = `Optimising ${done + 1} of ${jobs.length}…`;
     try {
-        if (id) {
-            const data = {
-                caption: caption,
-                category: category,
-                imageURL: uploadedGalleryImages[0],
-                isActive: isActive
-            };
-            await updateDoc(doc(db, "gallery", id), data);
-        } else {
-            // Upload each image as a separate document in background loop
-            for (let i = 0; i < uploadedGalleryImages.length; i++) {
-                const data = {
-                    caption: caption,
-                    category: category,
-                    imageURL: uploadedGalleryImages[i],
-                    isActive: isActive,
-                    createdAt: serverTimestamp()
-                };
-                await addDoc(collection(db, "gallery"), data);
-            }
-        }
-        galleryModal.classList.remove('active');
-        await loadGallery();
-        updateStats();
-    } catch(err) {
-        console.error(err);
-        alert('Error saving gallery item(s)');
-    } finally {
-        btn.disabled = false;
-        btn.innerText = 'Save Gallery Item';
+      await optimiseRecord(job);
+    } catch (err) {
+      console.error(err);
+      failed.push(`${job.collectionName}/${job.record.id}: ${err.message}`);
     }
-  });
-}
-async function deleteGalleryItem(id) {
- if (confirm('Are you sure you want to delete this gallery item?')) {
- try {
- await deleteDoc(doc(db, "gallery", id));
- await loadGallery();
- updateStats();
- } catch(err) {
- console.error(err);
- alert('Error deleting gallery item');
- }
- }
-}
+    done += 1;
+  }
+  await loadAll();
+  if (failed.length) status.textContent += `\nNot converted:\n${failed.join('\n')}`;
+});

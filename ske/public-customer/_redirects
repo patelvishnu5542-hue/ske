@@ -1,1 +1,3 @@
-/*  /index.html  200
+# Netlify redirects. There is deliberately no catch-all rule: missing pages get
+# 404.html with a real 404 status instead of the homepage. Netlify's "pretty URLs"
+# already serves /gallery and /product from the .html files.

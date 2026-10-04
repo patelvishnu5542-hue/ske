@@ -1,2 +1,4 @@
-/dashboard    /dashboard.html   200
-/*            /index.html       200
+# Netlify redirects for the admin site. Pretty URLs serve /dashboard from
+# dashboard.html; any other path goes to the login page.
+/dashboard  /dashboard.html  200
+/*          /index.html      200

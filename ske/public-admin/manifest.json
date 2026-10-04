@@ -1,23 +1,24 @@
 {
-  "short_name": "SKE Admin",
+  "id": "/",
   "name": "Shree Krishna Admin Portal",
+  "short_name": "SKE Admin",
+  "start_url": "/dashboard.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#34b7f1",
   "icons": [
     {
       "src": "icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "icon-512.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
-  ],
-  "start_url": "/",
-  "background_color": "#0a0f1d",
-  "theme_color": "#34b7f1",
-  "display": "standalone",
-  "orientation": "portrait"
+  ]
 }

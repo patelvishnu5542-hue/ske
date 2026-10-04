@@ -1,65 +1,32 @@
-const CACHE_NAME = 'ske-admin-cache-v1';
-const ASSETS = [
- '/',
- '/index.html',
- '/dashboard.html',
- '/css/admin.css',
- '/js/admin.js',
- '/js/auth.js',
- '/js/firebase-config.js',
- '/js/security.js',
- '/icon-192.png',
- '/icon-512.png',
- '/manifest.json'
-];
-self.addEventListener('install', event => {
- event.waitUntil(
- caches.open(CACHE_NAME).then(cache => {
- console.log('[Service Worker] Caching static assets');
- return cache.addAll(ASSETS);
- }).then(() => self.skipWaiting())
- );
+// Admin service worker. The admin must always see current data and code, so
+// everything goes to the network first; cached copies are only an offline fallback.
+// Firestore and login traffic are never touched.
+const VERSION = '76418af8'; // set by tools/stamp_assets.py
+const CACHE = `ske-admin-${VERSION}`;
+
+self.addEventListener('install', () => self.skipWaiting());
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
-self.addEventListener('activate', event => {
- event.waitUntil(
- caches.keys().then(keys => {
- return Promise.all(
- keys.map(key => {
- if (key !== CACHE_NAME) {
- console.log('[Service Worker] Removing old cache:', key);
- return caches.delete(key);
- }
- })
- );
- }).then(() => self.clients.claim())
- );
-});
-self.addEventListener('fetch', event => {
- if (event.request.method !== 'GET') return;
- const url = new URL(event.request.url);
- if (url.origin !== self.location.origin) {
- return;
- }
- event.respondWith(
- caches.match(event.request).then(cachedResponse => {
- if (cachedResponse) {
- fetch(event.request).then(networkResponse => {
- if (networkResponse.status === 200) {
- caches.open(CACHE_NAME).then(cache => cache.put(event.request, networkResponse));
- }
- }).catch(() => {});
- return cachedResponse;
- }
- return fetch(event.request).then(networkResponse => {
- if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
- return networkResponse;
- }
- const responseToCache = networkResponse.clone();
- caches.open(CACHE_NAME).then(cache => {
- cache.put(event.request, responseToCache);
- });
- return networkResponse;
- });
- })
- );
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    try {
+      const response = await fetch(request);
+      if (response.ok && !response.redirected) cache.put(request, response.clone());
+      return response;
+    } catch (err) {
+      const cached = await cache.match(request, { ignoreSearch: request.mode === 'navigate' });
+      if (cached) return cached;
+      throw err;
+    }
+  })());
 });
