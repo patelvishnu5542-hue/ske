@@ -1,23 +1,25 @@
 {
-  "short_name": "SKE Solar",
+  "id": "/",
   "name": "Shree Krishna Enterprises",
+  "short_name": "SKE Solar",
+  "description": "Authorized Waaree solar dealer.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#047857",
   "icons": [
     {
       "src": "icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "icon-512.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
-  ],
-  "start_url": "/",
-  "background_color": "#0a0f1d",
-  "theme_color": "#25D366",
-  "display": "standalone",
-  "orientation": "portrait"
+  ]
 }
